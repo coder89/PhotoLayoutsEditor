@@ -27,7 +27,7 @@ namespace KIPIPhotoLayoutsEditor
     class AddItemsCommand;
     class MoveItemsCommand;
     class RemoveItemsCommand;
-    class RotateItemsCommand;
+    class RotateItemCommand;
     class CropItemsCommand;
 
     class Scene : public QGraphicsScene
@@ -132,8 +132,6 @@ namespace KIPIPhotoLayoutsEditor
         private Q_SLOTS:
 
             void calcSelectionBoundingRect();
-            void rotateSelectedItems(const QPointF & rotationPoint, qreal angle);
-            void rotationCommand(const QPointF & rotationPoint, qreal angle);
 
         private:
 

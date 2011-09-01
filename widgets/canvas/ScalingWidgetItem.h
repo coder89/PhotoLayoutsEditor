@@ -8,13 +8,18 @@ namespace KIPIPhotoLayoutsEditor
     class AbstractPhoto;
     class ScalingWidgetItemPrivate;
 
+    class MoveItemCommand;
+    class ScaleItemCommand;
+
     class ScalingWidgetItem : public AbstractItemInterface
     {
+            Q_OBJECT
+
             ScalingWidgetItemPrivate * d;
 
         public:
 
-            ScalingWidgetItem(QGraphicsItem * parent = 0, QGraphicsScene * scene = 0);
+            ScalingWidgetItem(const QList<AbstractPhoto*> & items, QGraphicsItem * parent = 0, QGraphicsScene * scene = 0);
             virtual ~ScalingWidgetItem();
 
             virtual QRectF boundingRect() const;
@@ -27,9 +32,18 @@ namespace KIPIPhotoLayoutsEditor
             virtual void mouseReleaseEvent(QGraphicsSceneMouseEvent * event);
             virtual void mouseDoubleClickEvent(QGraphicsSceneMouseEvent * event);
 
+        private:
+
             void setScaleItems(const QList<AbstractPhoto*> & items);
 
+        private slots:
+
+            void updateShapes();
+
         friend class ScalingWidgetItemPrivate;
+
+        friend class MoveItemCommand;
+        friend class ScaleItemCommand;
     };
 }
 

@@ -166,7 +166,10 @@ namespace KIPIPhotoLayoutsEditor
             virtual QDomElement svgVisibleArea(QDomDocument & document) const = 0;
 
             // Draws abstract item presentation
-            virtual void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget);
+            virtual void paint(QPainter * painter, const QStyleOptionGraphicsItem * option, QWidget * widget);
+
+            // Items change slot
+            virtual QVariant itemChange(GraphicsItemChange change, const QVariant & value);
 
             // Mouse events
             virtual void dragEnterEvent(QGraphicsSceneDragDropEvent * event);

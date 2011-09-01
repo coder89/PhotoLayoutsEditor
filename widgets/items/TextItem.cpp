@@ -15,6 +15,9 @@
 
 using namespace KIPIPhotoLayoutsEditor;
 
+QColor TextItem::DEFAULT_COLOR = Qt::black;
+QFont TextItem::DEFAULT_FONT = QFont();
+
 class KIPIPhotoLayoutsEditor::TextItemPrivate
 {
     TextItemPrivate(TextItem * item) :
@@ -236,16 +239,12 @@ class KIPIPhotoLayoutsEditor::TextItem::TextFontUndoCommand : public QUndoComman
 TextItem::TextItem(const QString & text, Scene * scene) :
     AbstractPhoto((text.isEmpty() ? i18n("Text item") : text), scene),
     d(new TextItemPrivate(this)),
-    m_color(Qt::black),
-    m_font(QFont()),
+    m_color(DEFAULT_COLOR),
+    m_font(DEFAULT_FONT),
     m_string_list(QString(text).remove('\t').split('\n')),
     m_metrics(m_font)
 {
     this->setFlag(QGraphicsItem::ItemIsFocusable);
-    if (text.isEmpty())
-        this->setName(i18n("New text"));
-    else
-        this->setName(text);
     this->refresh();
 }
 
@@ -280,6 +279,7 @@ void TextItem::focusOutEvent(QFocusEvent * event)
 
 void TextItem::keyPressEvent(QKeyEvent * event)
 {
+    bool textChange = false;
     switch (event->key())
     {
         case Qt::Key_Left:
@@ -300,23 +300,27 @@ void TextItem::keyPressEvent(QKeyEvent * event)
         case Qt::Key_End:
             d->moveCursorEnd();
             break;
-        case Qt::Key_Delete:
-            d->removeTextAfter();
-            break;
-        case Qt::Key_Backspace:
-            d->removeTextBefore();
-            break;
         case Qt::Key_Return:
             d->addNewLine();
             break;
         case Qt::Key_Escape:
             d->closeEditor();
             break;
+        case Qt::Key_Delete:
+            d->removeTextAfter();
+            textChange = true;
+            break;
+        case Qt::Key_Backspace:
+            d->removeTextBefore();
+            textChange = true;
+            break;
         default:
             d->addText(event->text());
+            textChange = true;
     }
     refreshItem();
     event->setAccepted(true);
+    qDebug() << event->text();
 }
 
 void TextItem::mousePressEvent(QGraphicsSceneMouseEvent * event)
@@ -363,6 +367,7 @@ QColor TextItem::color() const
 
 void TextItem::setColor(const QColor & color)
 {
+    DEFAULT_COLOR = color;
     QUndoCommand * undo = new TextColorUndoCommand(color, this);
     PLE_PostUndoCommand(undo);
 }
@@ -374,6 +379,7 @@ QFont TextItem::font() const
 
 void TextItem::setFont(const QFont & font)
 {
+    DEFAULT_FONT = font;
     QUndoCommand * undo = new TextFontUndoCommand(font, this);
     PLE_PostUndoCommand(undo);
 }

@@ -9,11 +9,13 @@
 #include <QGraphicsSceneMouseEvent>
 #include <QDebug>
 
-#include "AbstractItemInterface.h"
+#include "AbstractPhoto.h"
 
 namespace KIPIPhotoLayoutsEditor
 {
     class RotationWidgetItemPrivate;
+    class RotateItemCommand;
+
     class RotationWidgetItem : public AbstractItemInterface
     {
             Q_OBJECT
@@ -22,7 +24,7 @@ namespace KIPIPhotoLayoutsEditor
 
         public:
 
-            RotationWidgetItem(QGraphicsItem * parent = 0);
+            RotationWidgetItem(const QList<AbstractPhoto*> & items, QGraphicsItem * parent = 0);
             virtual void paint(QPainter * painter, const QStyleOptionGraphicsItem * option, QWidget * widget = 0);
             virtual QPainterPath shape() const;
             virtual QPainterPath opaqueArea() const;
@@ -41,12 +43,15 @@ namespace KIPIPhotoLayoutsEditor
             virtual void mouseReleaseEvent(QGraphicsSceneMouseEvent * event);
             virtual void mouseMoveEvent(QGraphicsSceneMouseEvent * event);
 
+            void setItems(const QList<AbstractPhoto*> & items);
+
         Q_SIGNALS:
 
             void rotationChanged(const QPointF & point, qreal angle);
             void rotationFinished(const QPointF & point, qreal angle);
 
         friend class QGraphicsEditingWidget;
+        friend class RotateItemCommand;
     };
 
 }

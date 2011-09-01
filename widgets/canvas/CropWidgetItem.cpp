@@ -29,8 +29,7 @@ class KIPIPhotoLayoutsEditor::CropWidgetItemPrivate
     };
 
     CropWidgetItemPrivate() :
-        currentViewTransform(0, 0, 0,    0, 0, 0,   0, 0, 0),
-        recalculate(true),
+        currentViewTransform(1, 0, 0,    0, 1, 0,   0, 0, 1),
         pressedVHandler(-1),
         pressedHHandler(-1)
     {
@@ -52,11 +51,11 @@ class KIPIPhotoLayoutsEditor::CropWidgetItemPrivate
     QList<AbstractPhoto*> m_items;
     QPainterPath m_crop_shape;
     QPainterPath m_shape;
+    QPainterPath m_handlers_path;
     QRectF m_rect;
     QRectF m_begin_rect;
     QRectF m_handlers[Bottom+1][Right+1];
     QPainterPath m_elipse;
-    bool recalculate;
     int pressedVHandler;
     int pressedHHandler;
     QPointF handlerOffset;
@@ -66,52 +65,53 @@ class KIPIPhotoLayoutsEditor::CropWidgetItemPrivate
 
 void CropWidgetItemPrivate::transformDrawings(const QTransform & viewTransform)
 {
-    if (currentViewTransform == viewTransform && !recalculate)
+    if (currentViewTransform == viewTransform)
         return;
 
-    m_rect = currentViewTransform.inverted().mapRect(m_rect);
-    m_rect = viewTransform.mapRect(m_rect);
+    currentViewTransform = viewTransform;
 
     this->calculateDrawings();
-
-    recalculate = false;
-    currentViewTransform = viewTransform;
 }
 
 void CropWidgetItemPrivate::calculateDrawings()
 {
-    // Scale height of handlers
-    qreal h = qAbs(m_rect.height()) - 60;
-    h = (h < 0 ? h / 3.0 : 0);
-    h = (h < -10 ? -10 : h);
-    m_handlers[Top][Left].setHeight(20+h);
-    m_handlers[Top][HCenter].setHeight(20+h);
-    m_handlers[Top][Right].setHeight(20+h);
-    m_handlers[VCenter][Left].setHeight(20+h);
-    m_handlers[VCenter][Right].setHeight(20+h);
-    m_handlers[Bottom][Left].setHeight(20+h);
-    m_handlers[Bottom][HCenter].setHeight(20+h);
-    m_handlers[Bottom][Right].setHeight(20+h);
+    qreal tempx = -10 / currentViewTransform.m11();
+    qreal tempy = -10 / currentViewTransform.m22();
 
     // Scale width of handlers
-    qreal w = qAbs(m_rect.width()) - 60;
+    qreal w = qAbs(m_rect.width()) + 12 * tempx;
     w = (w < 0 ? w / 3.0 : 0);
-    w = (w < -10 ? -10 : w);
-    m_handlers[Top][Left].setWidth(20+w);
-    m_handlers[Top][HCenter].setWidth(20+w);
-    m_handlers[Top][Right].setWidth(20+w);
-    m_handlers[VCenter][Left].setWidth(20+w);
-    m_handlers[VCenter][Right].setWidth(20+w);
-    m_handlers[Bottom][Left].setWidth(20+w);
-    m_handlers[Bottom][HCenter].setWidth(20+w);
-    m_handlers[Bottom][Right].setWidth(20+w);
+    w = (w < tempx ? tempx : w);
+    qreal tw = w - 4 * tempx;
+    m_handlers[Top][Left].setWidth(tw);
+    m_handlers[Top][HCenter].setWidth(tw);
+    m_handlers[Top][Right].setWidth(tw);
+    m_handlers[VCenter][Left].setWidth(tw);
+    m_handlers[VCenter][Right].setWidth(tw);
+    m_handlers[Bottom][Left].setWidth(tw);
+    m_handlers[Bottom][HCenter].setWidth(tw);
+    m_handlers[Bottom][Right].setWidth(tw);
+
+    // Scale height of handlers
+    qreal h = qAbs(m_rect.height()) + 12 * tempy;
+    h = (h < 0 ? h / 3.0 : 0);
+    h = (h < tempy ? tempy : h);
+    qreal th = h - 4 * tempy;
+    m_handlers[Top][Left].setHeight(th);
+    m_handlers[Top][HCenter].setHeight(th);
+    m_handlers[Top][Right].setHeight(th);
+    m_handlers[VCenter][Left].setHeight(th);
+    m_handlers[VCenter][Right].setHeight(th);
+    m_handlers[Bottom][Left].setHeight(th);
+    m_handlers[Bottom][HCenter].setHeight(th);
+    m_handlers[Bottom][Right].setHeight(th);
 
     m_elipse = QPainterPath();
-    m_elipse.addEllipse(m_rect.center(), 18 + w, 18 + h);
+    m_elipse.addEllipse(m_rect.center(), tw / 2, th / 2);
 
-    w = qAbs(m_rect.width()) - 35;
+    w = qAbs(m_rect.width()) + 7 * tempx;
     w = (w < 0 ? w / 2.0 : 0);
-    h = qAbs(m_rect.height()) - 35;
+    h = qAbs(m_rect.height()) + 7 * tempy;
     h = (h < 0 ? h / 2.0 : 0);
     m_handlers[Top][Left].moveCenter(m_rect.topLeft() + QPointF(w,h));
     m_handlers[Top][HCenter].moveCenter( QPointF( m_rect.center().x(), m_rect.top() + h ) );
@@ -123,11 +123,13 @@ void CropWidgetItemPrivate::calculateDrawings()
     m_handlers[Bottom][Right].moveCenter(m_rect.bottomRight() + QPointF(-w,-h));
 
     m_shape = QPainterPath();
-    m_shape.setFillRule(Qt::WindingFill);
     m_shape.addRect(m_rect);
+
+    m_handlers_path = QPainterPath();
     for (int i = Top; i <= Bottom; ++i)
         for (int j = Left; j <= Right; ++j)
-            m_shape.addRect(m_handlers[i][j]);
+            m_handlers_path.addRect(m_handlers[i][j]);
+    m_handlers_path += m_elipse;
 }
 
 CropWidgetItem::CropWidgetItem(QGraphicsItem * parent, QGraphicsScene * scene) :
@@ -137,7 +139,6 @@ CropWidgetItem::CropWidgetItem(QGraphicsItem * parent, QGraphicsScene * scene) :
     this->setAcceptHoverEvents(true);
     this->setFlag(QGraphicsItem::ItemIsSelectable, false);
     this->setFlag(QGraphicsItem::ItemIsFocusable, true);
-    this->setFlag(QGraphicsItem::ItemIgnoresTransformations, true);
     this->setZValue(1.0 / 0.0);
 }
 
@@ -148,17 +149,17 @@ CropWidgetItem::~CropWidgetItem()
 
 QRectF CropWidgetItem::boundingRect() const
 {
-    return (d->currentViewTransform.map(d->m_crop_shape) + d->m_shape).boundingRect();
+    return (d->m_crop_shape + d->m_shape).boundingRect();
 }
 
 QPainterPath CropWidgetItem::opaqueArea() const
 {
-    return (d->currentViewTransform.map(d->m_crop_shape) + d->m_shape);
+    return d->m_crop_shape + d->m_shape;
 }
 
 QPainterPath CropWidgetItem::shape() const
 {
-    return (d->currentViewTransform.map(d->m_crop_shape) + d->m_shape);
+    return d->m_crop_shape + d->m_shape;
 }
 
 void CropWidgetItem::paint(QPainter * painter, const QStyleOptionGraphicsItem * /*option*/, QWidget * widget)
@@ -174,8 +175,8 @@ void CropWidgetItem::paint(QPainter * painter, const QStyleOptionGraphicsItem * 
 
     QPainterPath p;
     p.setFillRule(Qt::WindingFill);
-    p.addPolygon( viewTransform.map( this->mapFromScene(this->scene()->sceneRect()) ) );
-    p.addPath( viewTransform.map(d->m_crop_shape) );
+    p.addPolygon(this->mapFromScene(this->scene()->sceneRect()));
+    p.addPath(d->m_crop_shape);
     QPainterPath p1;
     p1.addRect(d->m_rect);
     p -= p1;
@@ -185,10 +186,11 @@ void CropWidgetItem::paint(QPainter * painter, const QStyleOptionGraphicsItem * 
     painter->setCompositionMode(QPainter::RasterOp_NotSourceAndNotDestination);
     painter->setPen(Qt::black);
     painter->setPen(Qt::DashLine);
-    painter->drawPath( viewTransform.map(d->m_crop_shape) );
+    painter->drawPath(d->m_crop_shape);
     painter->setPen(Qt::red);
     painter->setPen(Qt::SolidLine);
     painter->drawPath(d->m_shape);
+    painter->drawPath(d->m_handlers_path);
     painter->drawPath(d->m_elipse);
 
     painter->restore();
@@ -211,7 +213,7 @@ void CropWidgetItem::keyPressEvent(QKeyEvent * event)
             }
 
             foreach (AbstractPhoto * item, d->m_items)
-                item->setCropShape( this->mapToItem(item, d->currentViewTransform.inverted().map(p)) );
+                item->setCropShape( this->mapToItem(item, p) );
 
             if (commandGroupOpened)
                 PhotoLayoutsEditor::instance()->endUndoCommandGroup();
@@ -245,8 +247,7 @@ void CropWidgetItem::mousePressEvent(QGraphicsSceneMouseEvent * event)
     this->setFocus( Qt::MouseFocusReason );
     if (event->button() == Qt::LeftButton)
     {
-        QGraphicsView * view = qobject_cast<QGraphicsView*>(event->widget()->parentWidget());
-        QPointF handledPoint = view->transform().map(this->mapFromScene(event->buttonDownScenePos(Qt::LeftButton)));
+        QPointF handledPoint = this->mapFromScene(event->buttonDownScenePos(Qt::LeftButton));
         for (int i = CropWidgetItemPrivate::Top; i <= CropWidgetItemPrivate::Bottom; ++i)
         {
             for (int j = CropWidgetItemPrivate::Left; j <= CropWidgetItemPrivate::Right; ++j)
@@ -277,11 +278,10 @@ void CropWidgetItem::mouseMoveEvent(QGraphicsSceneMouseEvent * event)
     if (d->pressedHHandler == -1 || d->pressedVHandler == -1)
         return;
 
-    QRectF maxRect = d->currentViewTransform.mapRect(d->m_crop_shape.boundingRect());
-    QGraphicsView * view = qobject_cast<QGraphicsView*>(event->widget()->parentWidget());
+    QRectF maxRect = d->m_crop_shape.boundingRect();
 
     // New handler position calc
-    QPointF point = view->transform().map(event->pos()) + d->handlerOffset;
+    QPointF point = event->pos() + d->handlerOffset;
     if (point.rx() < maxRect.left())
         point.setX( maxRect.left() );
     else if (point.rx() > maxRect.right())
@@ -297,8 +297,11 @@ void CropWidgetItem::mouseMoveEvent(QGraphicsSceneMouseEvent * event)
     if (d->pressedVHandler == CropWidgetItemPrivate::VCenter &&
         d->pressedHHandler == CropWidgetItemPrivate::HCenter)
     {
-        QPointF dif = view->transform().map(event->scenePos()) - view->transform().map(event->lastScenePos());
+        QPointF dif = event->scenePos() - event->lastScenePos();
         temp.translate(dif);
+
+        temp.translate( qMin(maxRect.right()-temp.right(),0.0), qMin(maxRect.bottom()-temp.bottom(),0.0) );
+        temp.translate( qMax(maxRect.left()-temp.left(),0.0), qMax(maxRect.top()-temp.top(),0.0) );
     }
     // Size change
     else
@@ -349,31 +352,33 @@ void CropWidgetItem::mouseMoveEvent(QGraphicsSceneMouseEvent * event)
                     temp.setBottom( d->m_begin_rect.bottom() - dif );
             }
         }
-    }
 
-    temp.setBottom( qMin(temp.bottom() , maxRect.bottom()) );
-    temp.setTop( qMax(temp.top() , maxRect.top()) );
-    temp.setLeft( qMax(temp.left() , maxRect.left()) );
-    temp.setRight( qMin(temp.right() , maxRect.right()) );
+        temp.setBottom( qMin(temp.bottom() , maxRect.bottom()) );
+        temp.setTop( qMax(temp.top() , maxRect.top()) );
+        temp.setLeft( qMax(temp.left() , maxRect.left()) );
+        temp.setRight( qMin(temp.right() , maxRect.right()) );
 
-    // Rect inverse
-    if (temp.height() < 0)
-    {
-        qreal t = temp.bottom();
-        temp.setBottom(temp.top());
-        temp.setTop(t);
-        d->pressedVHandler = (d->pressedVHandler == CropWidgetItemPrivate::Top ? CropWidgetItemPrivate::Bottom :CropWidgetItemPrivate::Top);
-    }
-    if (temp.width() < 0)
-    {
-        qreal t = temp.right();
-        temp.setRight(temp.left());
-        temp.setLeft(t);
-        d->pressedHHandler = (d->pressedHHandler == CropWidgetItemPrivate::Left ? CropWidgetItemPrivate::Right :CropWidgetItemPrivate::Left);
+        // Rect inverse
+        if (temp.height() < 0)
+        {
+            qreal t = temp.bottom();
+            temp.setBottom(temp.top());
+            temp.setTop(t);
+            d->pressedVHandler = (d->pressedVHandler == CropWidgetItemPrivate::Top ? CropWidgetItemPrivate::Bottom :CropWidgetItemPrivate::Top);
+        }
+        if (temp.width() < 0)
+        {
+            qreal t = temp.right();
+            temp.setRight(temp.left());
+            temp.setLeft(t);
+            d->pressedHHandler = (d->pressedHHandler == CropWidgetItemPrivate::Left ? CropWidgetItemPrivate::Right :CropWidgetItemPrivate::Left);
+        }
+
     }
 
     d->m_rect = temp;
 
+    event->setAccepted(true);
     d->calculateDrawings();
     this->update();
 }
@@ -388,25 +393,24 @@ void CropWidgetItem::setItems(const QList<AbstractPhoto*> & items)
 {
     d->m_items = items;
 
-    d->m_crop_shape = QPainterPath();
     foreach (AbstractPhoto * item, items)
+        connect(item, SIGNAL(changed()), this, SLOT(updateShapes()));
+
+    this->updateShapes();
+}
+
+void CropWidgetItem::updateShapes()
+{
+    d->m_crop_shape = QPainterPath();
+    foreach (AbstractPhoto * item, d->m_items)
         d->m_crop_shape += this->mapFromItem(item, item->itemDrawArea());
 
-    this->setPos( d->m_crop_shape.boundingRect().topLeft() );
-    d->m_crop_shape.translate( -d->m_crop_shape.boundingRect().topLeft() );
-
     QPainterPath temp;
-    foreach (AbstractPhoto * item, items)
-        temp += this->mapFromItem(item, item->opaqueArea());
+    foreach (AbstractPhoto * item, d->m_items)
+        temp += this->mapFromItem(item, item->itemOpaqueArea());
     d->m_rect = temp.boundingRect();
 
-    d->recalculate = true;
     d->calculateDrawings();
-    if (!d->m_rect.isValid())
-    {
-        this->hide();
-        return;
-    }
+
     this->update();
-    this->show();
 }

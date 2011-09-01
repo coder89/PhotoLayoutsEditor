@@ -37,6 +37,10 @@ namespace KIPIPhotoLayoutsEditor
             void cropShapeSelected(const QPainterPath & shape);
             void cancelCrop();
 
+        private slots:
+
+            void updateShapes();
+
         friend class CropWidgetItemPrivate;
     };
 }

@@ -155,18 +155,12 @@ class KIPIPhotoLayoutsEditor::ScenePrivate
     }
     bool selectPressed()
     {
-        if (m_pressed_item &&
-            m_pressed_item != m_rot_item &&
-            m_pressed_item != m_scale_item &&
-            m_pressed_item != m_crop_item)
+        if (m_pressed_item)
         {
             // Select if not selested
             if (!m_pressed_item->isSelected())
             {
-                AbstractPhoto * photo = dynamic_cast<AbstractPhoto*>(m_pressed_item);
-                if (!photo)
-                    return false;
-                m_selected_items.insert(photo, m_pressed_item->pos());
+                m_selected_items.insert(m_pressed_item, m_pressed_item->pos());
                 m_selected_items_path = m_selected_items_path.united(m_pressed_item->mapToScene(m_pressed_item->shape()));
                 m_selected_items_all_movable &= m_pressed_item->flags() & QGraphicsItem::ItemIsMovable;
                 m_pressed_item->setSelected(true);
@@ -206,7 +200,8 @@ class KIPIPhotoLayoutsEditor::ScenePrivate
         return false;
     }
     QMap<AbstractPhoto*,QPointF> m_selected_items;
-    AbstractItemInterface * m_pressed_item;
+    AbstractItemInterface * m_pressed_object;
+    AbstractPhoto * m_pressed_item;
     QPainterPath m_selected_items_path;
     QPointF m_selected_items_path_initial_pos;
     bool m_selected_items_all_movable;
@@ -241,7 +236,7 @@ class KIPIPhotoLayoutsEditor::AddItemsCommand : public QUndoCommand
         bool done;
     public:
         AddItemsCommand(AbstractPhoto * item, int position, Scene * scene, QUndoCommand * parent = 0) :
-            QUndoCommand(parent),
+            QUndoCommand(i18n("Add item"), parent),
             position(position),
             scene(scene),
             done(false)
@@ -249,7 +244,7 @@ class KIPIPhotoLayoutsEditor::AddItemsCommand : public QUndoCommand
             items << item;
         }
         AddItemsCommand(const QList<AbstractPhoto*> & items, int position, Scene * scene, QUndoCommand * parent = 0) :
-            QUndoCommand(parent),
+            QUndoCommand((items.count() > 1 ? i18n("Add items") : i18n("Add item")), parent),
             items(items),
             position(position),
             scene(scene),
@@ -427,64 +422,12 @@ class KIPIPhotoLayoutsEditor::RemoveItemsCommand : public QUndoCommand
             }
         }
 };
-class KIPIPhotoLayoutsEditor::RotateItemsCommand : public QUndoCommand
-{
-    QList<AbstractPhoto*> items;
-    QTransform transform;
-    QPointF rotationPoint;
-    qreal angle;
-    bool done;
-public:
-    RotateItemsCommand(const QList<AbstractPhoto*> & items, const QPointF & rotationPoint, qreal angle, QUndoCommand * parent = 0) :
-        QUndoCommand(parent),
-        items(items),
-        rotationPoint(rotationPoint),
-        angle(angle),
-        done(true)
-    {
-        transform.translate(this->rotationPoint.rx(), this->rotationPoint.ry());
-        transform.rotate(angle);
-        transform.translate(-this->rotationPoint.rx(), -this->rotationPoint.ry());
-    }
-    virtual void redo()
-    {
-        if (done)
-            return;
-        foreach (AbstractItemInterface * item, items)
-        {
-            QRectF updateRect = item->mapRectToScene(item->boundingRect());
-            QTransform rotated = item->transform() * transform;
-            item->setTransform(rotated);
-            updateRect = updateRect.united( item->mapRectToScene(item->boundingRect()) );
-            if (item->scene())
-                item->scene()->invalidate(updateRect);
-        }
-        items.first()->scene()->clearSelection();
-        done = true;
-    }
-    virtual void undo()
-    {
-        if (!done)
-            return;
-        foreach (AbstractItemInterface * item, items)
-        {
-            QRectF updateRect = item->mapRectToScene(item->boundingRect());
-            QTransform rotated = item->transform() * transform.inverted();
-            item->setTransform(rotated);
-            updateRect = updateRect.united( item->mapRectToScene(item->boundingRect()) );
-            if (item->scene())
-                item->scene()->invalidate(updateRect);
-        }
-        items.first()->scene()->clearSelection();
-        done = false;
-    }
-};
 class KIPIPhotoLayoutsEditor::CropItemsCommand : public QUndoCommand
 {
     QMap<AbstractPhoto*,QPainterPath> data;
 public:
     CropItemsCommand(const QPainterPath & path, const QList<AbstractPhoto*> & items, QUndoCommand * parent = 0) :
-        QUndoCommand(parent)
+        QUndoCommand((items.count() > 1 ? i18n("Crop items") : i18n("Crop item")), parent)
     {
         qDebug() << "scene crop shape" << path.boundingRect();
         foreach (AbstractPhoto * item, items)
@@ -742,31 +685,30 @@ void Scene::mousePressEvent(QGraphicsSceneMouseEvent * event)
                 event->setModifiers(event->modifiers() & !Qt::ControlModifier);
 
             // Get pressed item
-            d->m_pressed_item = d->itemAt(event->scenePos(), event->widget());
+            d->m_pressed_object = d->itemAt(event->scenePos(), event->widget());
+            // Test if this is a photo/text item
+            d->m_pressed_item = dynamic_cast<AbstractPhoto*>(d->m_pressed_object);
 
             // If it is rotation widget
-            if ((m_interaction_mode & Rotating) && d->m_pressed_item == d->m_rot_item)
+            if ((m_interaction_mode & Rotating) && d->m_pressed_object == d->m_rot_item)
             {
-                d->sendPressEventToItem(d->m_pressed_item, event);
+                d->sendPressEventToItem(d->m_pressed_object, event);
                 return;
             }
 
             // If it is scaling widget
-            if ((m_interaction_mode & Scaling) && d->m_pressed_item == d->m_scale_item)
+            if ((m_interaction_mode & Scaling) && d->m_pressed_object == d->m_scale_item)
             {
-                d->sendPressEventToItem(d->m_pressed_item, event);
+                d->sendPressEventToItem(d->m_pressed_object, event);
                 return;
             }
 
             // If it is cropping widget
-            if ((m_interaction_mode & Cropping) && d->m_pressed_item == d->m_crop_item)
+            if ((m_interaction_mode & Cropping) && d->m_pressed_object == d->m_crop_item)
             {
-                d->sendPressEventToItem(d->m_pressed_item, event);
+                d->sendPressEventToItem(d->m_pressed_object, event);
                 return;
             }
-
-            // Test if this is a photo/text item
-            d->m_pressed_item = dynamic_cast<AbstractPhoto*>(d->m_pressed_item);
 
             // If event pos is not in current selection shape...
             if (!d->m_selected_items_path.contains(event->scenePos()) || !d->m_selected_items.contains(dynamic_cast<AbstractPhoto*>(d->m_pressed_item)))
@@ -816,8 +758,8 @@ void Scene::mouseMoveEvent(QGraphicsSceneMouseEvent * event)
         if (d->m_readSceneMousePress_enabled)
             return;
 
-        if (d->m_pressed_item)
-            d->sendMoveEventToItem(d->m_pressed_item, event);
+        if (d->m_pressed_object)
+            d->sendMoveEventToItem(d->m_pressed_object, event);
 
         if (m_interaction_mode & Moving)
         {
@@ -867,12 +809,13 @@ void Scene::mouseReleaseEvent(QGraphicsSceneMouseEvent * event)
                 d->focusPressed();
 
             // Send mousereleaseevent to the released item
-            if (d->m_pressed_item)
-                d->sendReleaseEventToItem(d->m_pressed_item, event);
+            if (d->m_pressed_object)
+                d->sendReleaseEventToItem(d->m_pressed_object, event);
 
             // Post move command to QUndoStack
             if ((m_interaction_mode & Moving) && d->wasMoved())
             {
+                qDebug() << "move command from scene";
                 QUndoCommand * command = new MoveItemsCommand(d->m_selected_items, this);
                 PLE_PostUndoCommand(command);
             }
@@ -1189,6 +1132,8 @@ void Scene::setRotationWidgetVisible(bool isVisible)
 {
     if (d->m_rot_item)
     {
+        if (d->m_pressed_object == d->m_rot_item)
+            d->m_pressed_object = 0;
         this->QGraphicsScene::removeItem(d->m_rot_item);
         d->m_rot_item->deleteLater();
         d->m_rot_item = 0;
@@ -1197,22 +1142,9 @@ void Scene::setRotationWidgetVisible(bool isVisible)
     if (isVisible)
     {
         if (!d->m_rot_item)
-        {
-            d->m_rot_item = new RotationWidgetItem();
-            connect(d->m_rot_item, SIGNAL(rotationChanged(QPointF,qreal)), this, SLOT(rotateSelectedItems(QPointF,qreal)));
-            connect(d->m_rot_item, SIGNAL(rotationFinished(QPointF,qreal)), this, SLOT(rotationCommand(QPointF,qreal)));
-        }
+            d->m_rot_item = new RotationWidgetItem(d->m_selected_items.keys());
         d->m_rot_item->setZValue(1.0/0.0);
         this->QGraphicsScene::addItem(d->m_rot_item);
-        if (d->m_selected_items.count() == 1)
-        {
-            AbstractItemInterface * item = d->m_selected_items.keys().first();
-            d->m_rot_item->initRotation(d->m_selected_items_path, item->boundingRect().center() * item->transform());
-            d->m_rot_item->setPos(d->m_selected_items_path.boundingRect().center());
-            d->m_rot_item->show();
-        }
-        else
-            d->m_rot_item->hide();
     }
 }
 
@@ -1221,21 +1153,20 @@ void Scene::setScalingWidgetVisible(bool isVisible)
 {
     if (d->m_scale_item)
     {
+        if (d->m_pressed_object == d->m_scale_item)
+            d->m_pressed_object = 0;
         this->QGraphicsScene::removeItem(d->m_scale_item);
         d->m_scale_item->deleteLater();
         d->m_scale_item = 0;
     }
 
-    if (isVisible)
+    if (isVisible && d->m_selected_items.count())
     {
         if (!d->m_scale_item)
-            d->m_scale_item = new ScalingWidgetItem();
+            d->m_scale_item = new ScalingWidgetItem(d->m_selected_items.keys());
         d->m_scale_item->setZValue(1.0/0.0);
         this->QGraphicsScene::addItem(d->m_scale_item);
-        if (d->m_selected_items.count() == 1)
-            d->m_scale_item->setScaleItems(d->m_selected_items.keys());
-        else
-            d->m_scale_item->hide();
+        this->update(d->m_scale_item->boundingRect());
     }
 }
 
@@ -1244,6 +1175,8 @@ void Scene::setCropWidgetVisible(bool isVisible)
 {
     if (d->m_crop_item)
     {
+        if (d->m_pressed_object == d->m_crop_item)
+            d->m_pressed_object = 0;
         this->QGraphicsScene::removeItem(d->m_crop_item);
         d->m_crop_item->deleteLater();
         d->m_crop_item = 0;
@@ -1456,34 +1389,6 @@ void Scene::calcSelectionBoundingRect()
     d->m_selected_items_path = QPainterPath();
     foreach (AbstractItemInterface * item, d->m_selected_items.keys())
         d->m_selected_items_path = d->m_selected_items_path.united(item->mapToScene(item->shape()));
-}
-
-//#####################################################################################################
-void Scene::rotateSelectedItems(const QPointF & rotationPoint, qreal angle)
-{
-    foreach (AbstractItemInterface * item, d->m_selected_items.keys())
-    {
-        QPointF point = rotationPoint;
-        QTransform transform;
-        transform.translate(point.rx(), point.ry());
-        transform.rotate(angle);
-        transform.translate(-point.rx(), -point.ry());
-        QRectF updateRect = item->mapRectToScene(item->boundingRect());
-        QTransform rotated = item->transform() * transform;
-        item->setTransform(rotated);
-        updateRect = updateRect.united( item->mapRectToScene( item->boundingRect() ) );
-        if (item->scene())
-            item->scene()->invalidate(updateRect);
-    }
-}
-
-//#####################################################################################################
-void Scene::rotationCommand(const QPointF & rotationPoint, qreal angle)
-{
-    QUndoCommand * command = new RotateItemsCommand(d->m_selected_items.keys(),
-                                                    rotationPoint,
-                                                    angle);
-    PLE_PostUndoCommand(command);
 }
 
 //#####################################################################################################

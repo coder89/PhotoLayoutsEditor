@@ -137,6 +137,8 @@ void AbstractPhoto::setupItem()
 {
     this->setFlag(QGraphicsItem::ItemIsSelectable);
     this->setFlag(QGraphicsItem::ItemIsMovable);
+    this->setFlag(QGraphicsItem::ItemSendsGeometryChanges);
+    this->setFlag(QGraphicsItem::ItemSendsScenePositionChanges);
 }
 
 QString AbstractPhoto::uniqueName(const QString & name)
@@ -322,7 +324,7 @@ bool AbstractPhoto::fromSvg(QDomElement & element)
 
     // ID & name
     m_id = element.attribute("id");
-    setName(element.attribute("name"));
+    d->setName(element.attribute("name"));
 
     // Borders
     QDomNodeList children = element.childNodes();
@@ -388,6 +390,20 @@ QString AbstractPhoto::name() const
 void AbstractPhoto::paint(QPainter * painter, const QStyleOptionGraphicsItem * option, QWidget * /*widget*/)
 {
     bordersGroup()->paint(painter, option);
+}
+
+QVariant AbstractPhoto::itemChange(GraphicsItemChange change, const QVariant & value)
+{
+    switch (change)
+    {
+        case ItemScaleHasChanged:
+        case ItemRotationHasChanged:
+        case ItemTransformHasChanged:
+        case ItemPositionChange:
+        case ItemScenePositionHasChanged:
+            emit changed();
+    }
+    return AbstractItemInterface::itemChange(change, value);
 }
 
 void AbstractPhoto::dragEnterEvent(QGraphicsSceneDragDropEvent * event)

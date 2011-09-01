@@ -1,16 +1,104 @@
 #include "ScalingWidgetItem.h"
 #include "AbstractPhoto.h"
+#include "photolayoutseditor.h"
+#include "global.h"
 
 #include <QPainter>
 #include <QGraphicsScene>
 #include <QGraphicsView>
+#include <QUndoCommand>
 #include <QDebug>
 #include <QGraphicsSceneMouseEvent>
+#include <QMap>
+
+#include <klocalizedstring.h>
 
 using namespace KIPIPhotoLayoutsEditor;
 
+class KIPIPhotoLayoutsEditor::MoveItemCommand : public QUndoCommand
+{
+    AbstractPhoto * m_item;
+    QPointF m_translation;
+    bool done;
+public:
+    MoveItemCommand(AbstractPhoto * item, QUndoCommand * parent = 0) :
+        QUndoCommand(i18n("Move item"), parent),
+        m_item(item),
+        done(false)
+    {}
+    virtual void redo()
+    {
+        if (done)
+            return;
+        qDebug() << done << "redo MoveItemCommand";
+        m_item->moveBy(m_translation.x(), m_translation.y());
+        done = true;
+    }
+    virtual void undo()
+    {
+        if (!done)
+            return;
+        qDebug() << done << "undo MoveItemCommand";
+        m_item->moveBy(-m_translation.x(), -m_translation.y());
+        done = false;
+    }
+    void addTranslation(const QPointF & point)
+    {
+        m_translation += point;
+    }
+    QPointF translation()
+    {
+        return m_translation;
+    }
+    void setDone(bool done)
+    {
+        this->done = done;
+    }
+};
+
+class KIPIPhotoLayoutsEditor::ScaleItemCommand : public MoveItemCommand
+{
+    AbstractPhoto * m_item;
+    QTransform scale;
+    bool done;
+public:
+    ScaleItemCommand(AbstractPhoto * item, QUndoCommand * parent = 0) :
+        MoveItemCommand(item, parent),
+        m_item(item),
+        done(false)
+    {
+        this->setText(i18n("Scale item"));
+    }
+    virtual void redo()
+    {
+        if (done)
+            return;
+        m_item->setTransform( m_item->transform() * scale );
+        MoveItemCommand::redo();
+        done = true;
+    }
+    virtual void undo()
+    {
+        if (!done)
+            return;
+        QTransform inverted = scale.inverted();
+        m_item->setTransform( m_item->transform() * inverted );
+        MoveItemCommand::undo();
+        done = false;
+    }
+    void addScale(const QTransform & scale)
+    {
+        this->scale *= scale;
+    }
+    void setDone(bool done)
+    {
+        this->done = done;
+        MoveItemCommand::setDone(done);
+    }
+};
+
 class KIPIPhotoLayoutsEditor::ScalingWidgetItemPrivate
-{   
+{
     enum
     {
         Top,
@@ -26,7 +114,7 @@ class KIPIPhotoLayoutsEditor::ScalingWidgetItemPrivate
     };
 
     ScalingWidgetItemPrivate() :
-        currentViewTransform(0, 0, 0,    0, 0, 0,   0, 0, 0),
+        currentViewTransform(1, 0, 0,    0, 1, 0,   0, 0, 1),
         recalculate(true),
         pressedVHandler(-1),
         pressedHHandler(-1)
@@ -44,12 +132,13 @@ class KIPIPhotoLayoutsEditor::ScalingWidgetItemPrivate
 
     QTransform currentViewTransform;
     void transformDrawings(const QTransform & viewTransform);
-    void calculateDrawings();
+    void calculateHandlers();
     void correctRect(QRectF & r);
 
     QList<AbstractPhoto*> m_items;
     QPainterPath m_crop_shape;
     QPainterPath m_shape;
+    QPainterPath m_handlers_path;
     QRectF m_rect;
     QRectF m_begin_rect;
     QRectF m_handlers[Bottom+1][Right+1];
@@ -59,57 +148,62 @@ class KIPIPhotoLayoutsEditor::ScalingWidgetItemPrivate
     int pressedHHandler;
     QPointF handlerOffset;
 
+    // Undo commands
+    QMap<AbstractPhoto*,ScaleItemCommand*> scale_commands;
+    QMap<AbstractPhoto*,MoveItemCommand*> move_commands;
+
     friend class ScalingWidgetItem;
 };
 
 void ScalingWidgetItemPrivate::transformDrawings(const QTransform & viewTransform)
 {
-    if (currentViewTransform == viewTransform && !recalculate)
+    if (currentViewTransform == viewTransform)
         return;
 
-    m_rect = currentViewTransform.inverted().mapRect(m_rect);
-    m_rect = viewTransform.mapRect(m_rect);
-
-    this->calculateDrawings();
-
-    recalculate = false;
     currentViewTransform = viewTransform;
+
+    this->calculateHandlers();
 }
 
-void ScalingWidgetItemPrivate::calculateDrawings()
+void ScalingWidgetItemPrivate::calculateHandlers()
 {
-    // Scale height of handlers
-    qreal h = qAbs(m_rect.height()) - 60;
-    h = (h < 0 ? h / 3.0 : 0);
-    h = (h < -10 ? -10 : h);
-    m_handlers[Top][Left].setHeight(20+h);
-    m_handlers[Top][HCenter].setHeight(20+h);
-    m_handlers[Top][Right].setHeight(20+h);
-    m_handlers[VCenter][Left].setHeight(20+h);
-    m_handlers[VCenter][Right].setHeight(20+h);
-    m_handlers[Bottom][Left].setHeight(20+h);
-    m_handlers[Bottom][HCenter].setHeight(20+h);
-    m_handlers[Bottom][Right].setHeight(20+h);
+    qreal tempx = -10 / currentViewTransform.m11();
+    qreal tempy = -10 / currentViewTransform.m22();
 
     // Scale width of handlers
-    qreal w = qAbs(m_rect.width()) - 60;
+    qreal w = qAbs(m_rect.width()) + 12 * tempx;
     w = (w < 0 ? w / 3.0 : 0);
-    w = (w < -10 ? -10 : w);
-    m_handlers[Top][Left].setWidth(20+w);
-    m_handlers[Top][HCenter].setWidth(20+w);
-    m_handlers[Top][Right].setWidth(20+w);
-    m_handlers[VCenter][Left].setWidth(20+w);
-    m_handlers[VCenter][Right].setWidth(20+w);
-    m_handlers[Bottom][Left].setWidth(20+w);
-    m_handlers[Bottom][HCenter].setWidth(20+w);
-    m_handlers[Bottom][Right].setWidth(20+w);
+    w = (w < tempx ? tempx : w);
+    qreal tw = w - 4 * tempx;
+    m_handlers[Top][Left].setWidth(tw);
+    m_handlers[Top][HCenter].setWidth(tw);
+    m_handlers[Top][Right].setWidth(tw);
+    m_handlers[VCenter][Left].setWidth(tw);
+    m_handlers[VCenter][Right].setWidth(tw);
+    m_handlers[Bottom][Left].setWidth(tw);
+    m_handlers[Bottom][HCenter].setWidth(tw);
+    m_handlers[Bottom][Right].setWidth(tw);
+
+    // Scale height of handlers
+    qreal h = qAbs(m_rect.height()) + 12 * tempy;
+    h = (h < 0 ? h / 3.0 : 0);
+    h = (h < tempy ? tempy : h);
+    qreal th = h - 4 * tempy;
+    m_handlers[Top][Left].setHeight(th);
+    m_handlers[Top][HCenter].setHeight(th);
+    m_handlers[Top][Right].setHeight(th);
+    m_handlers[VCenter][Left].setHeight(th);
+    m_handlers[VCenter][Right].setHeight(th);
+    m_handlers[Bottom][Left].setHeight(th);
+    m_handlers[Bottom][HCenter].setHeight(th);
+    m_handlers[Bottom][Right].setHeight(th);
 
     m_elipse = QPainterPath();
-    m_elipse.addEllipse(m_rect.center(), 18 + w, 18 + h);
+    m_elipse.addEllipse(m_rect.center(), tw / 2, th / 2);
 
-    w = qAbs(m_rect.width()) - 35;
+    w = qAbs(m_rect.width()) + 7 * tempx;
     w = (w < 0 ? w / 2.0 : 0);
-    h = qAbs(m_rect.height()) - 35;
+    h = qAbs(m_rect.height()) + 7 * tempy;
     h = (h < 0 ? h / 2.0 : 0);
     m_handlers[Top][Left].moveCenter(m_rect.topLeft() + QPointF(w,h));
     m_handlers[Top][HCenter].moveCenter( QPointF( m_rect.center().x(), m_rect.top() + h ) );
@@ -121,11 +215,13 @@ void ScalingWidgetItemPrivate::calculateDrawings()
     m_handlers[Bottom][Right].moveCenter(m_rect.bottomRight() + QPointF(-w,-h));
 
     m_shape = QPainterPath();
-    m_shape.setFillRule(Qt::WindingFill);
     m_shape.addRect(m_rect);
+
+    m_handlers_path = QPainterPath();
     for (int i = Top; i <= Bottom; ++i)
         for (int j = Left; j <= Right; ++j)
-            m_shape.addRect(m_handlers[i][j]);
+            m_handlers_path.addRect(m_handlers[i][j]);
+    m_handlers_path += m_elipse;
 }
 
 void ScalingWidgetItemPrivate::correctRect(QRectF & r)
@@ -147,13 +243,13 @@ void ScalingWidgetItemPrivate::correctRect(QRectF & r)
     }
 }
 
-ScalingWidgetItem::ScalingWidgetItem(QGraphicsItem * parent, QGraphicsScene * scene) :
+ScalingWidgetItem::ScalingWidgetItem(const QList<AbstractPhoto*> & items, QGraphicsItem * parent, QGraphicsScene * scene) :
     AbstractItemInterface(parent, scene),
     d(new ScalingWidgetItemPrivate)
 {
     this->setAcceptHoverEvents(true);
     this->setFlag(QGraphicsItem::ItemIsSelectable, false);
-    this->setFlag(QGraphicsItem::ItemIgnoresTransformations, true);
+    this->setScaleItems(items);
 }
 
 ScalingWidgetItem::~ScalingWidgetItem()
@@ -163,17 +259,17 @@ ScalingWidgetItem::~ScalingWidgetItem()
 
 QRectF ScalingWidgetItem::boundingRect() const
 {
-    return d->m_shape.boundingRect();
+    return (d->m_shape + d->m_handlers_path).boundingRect();
 }
 
 QPainterPath ScalingWidgetItem::opaqueArea() const
 {
-    return d->m_shape;
+    return (d->m_shape + d->m_handlers_path);
 }
 
 QPainterPath ScalingWidgetItem::shape() const
 {
-    return d->m_shape;
+    return (d->m_shape + d->m_handlers_path);
 }
 
 void ScalingWidgetItem::paint(QPainter * painter, const QStyleOptionGraphicsItem * /*option*/, QWidget * widget)
@@ -192,6 +288,7 @@ void ScalingWidgetItem::paint(QPainter * painter, const QStyleOptionGraphicsItem
     painter->setPen(Qt::red);
     painter->setPen(Qt::SolidLine);
     painter->drawPath(d->m_shape);
+    painter->drawPath(d->m_handlers_path);
     painter->drawPath(d->m_elipse);
 
     painter->restore();
@@ -206,8 +303,7 @@ void ScalingWidgetItem::mousePressEvent(QGraphicsSceneMouseEvent * event)
     d->m_begin_rect = d->m_rect;
     if (event->button() == Qt::LeftButton)
     {
-        QGraphicsView * view = qobject_cast<QGraphicsView*>(event->widget()->parentWidget());
-        QPointF handledPoint = view->transform().map(this->mapFromScene(event->buttonDownScenePos(Qt::LeftButton)));
+        QPointF handledPoint = this->mapFromScene(event->buttonDownScenePos(Qt::LeftButton));
         for (int i = ScalingWidgetItemPrivate::Top; i <= ScalingWidgetItemPrivate::Bottom; ++i)
         {
             for (int j = ScalingWidgetItemPrivate::Left; j <= ScalingWidgetItemPrivate::Right; ++j)
@@ -224,10 +320,12 @@ void ScalingWidgetItem::mousePressEvent(QGraphicsSceneMouseEvent * event)
         {
             d->pressedVHandler = ScalingWidgetItemPrivate::VCenter;
             d->pressedHHandler = ScalingWidgetItemPrivate::HCenter;
+            event->setAccepted(true);
         }
         return;
         found:
             d->handlerOffset = d->m_handlers[d->pressedVHandler][d->pressedHHandler].center() - handledPoint;
+            event->setAccepted(true);
     }
 }
 
@@ -236,10 +334,8 @@ void ScalingWidgetItem::mouseMoveEvent(QGraphicsSceneMouseEvent * event)
     if (d->pressedHHandler == -1 || d->pressedVHandler == -1)
         return;
 
-    QGraphicsView * view = qobject_cast<QGraphicsView*>(event->widget()->parentWidget());
-
     // New handler position calc
-    QPointF point = view->transform().map(event->pos()) + d->handlerOffset;
+    QPointF point = event->pos() + d->handlerOffset;
 
     QRectF temp = d->m_rect;
 
@@ -247,11 +343,19 @@ void ScalingWidgetItem::mouseMoveEvent(QGraphicsSceneMouseEvent * event)
     if (d->pressedVHandler == ScalingWidgetItemPrivate::VCenter &&
         d->pressedHHandler == ScalingWidgetItemPrivate::HCenter)
     {
-        QPointF dif = view->transform().map(event->scenePos()) - view->transform().map(event->lastScenePos());
+        QPointF dif = event->scenePos() - event->lastScenePos();
         temp.translate(dif);
+        d->m_handlers_path.translate(dif);
         dif = (event->scenePos()) - (event->lastScenePos());
         foreach (AbstractPhoto * item, d->m_items)
+        {
+            MoveItemCommand * moveCom = d->move_commands[item];
+            if (!moveCom)
+                moveCom = d->move_commands[item] = new MoveItemCommand(item);
+            moveCom->addTranslation(dif);
+
             item->QGraphicsItem::moveBy(dif.x(), dif.y());
+        }
     }
     // Size change
     else
@@ -309,37 +413,74 @@ void ScalingWidgetItem::mouseMoveEvent(QGraphicsSceneMouseEvent * event)
     QTransform sc;
     sc.scale(temp.width() / d->m_rect.width(), temp.height() / d->m_rect.height());
 
-    foreach(AbstractPhoto * item, d->m_items)
+    if (!sc.isIdentity())
     {
-        QRectF before = item->mapRectToScene(item->boundingRect());
-        item->setTransform( item->transform() * sc );
-        QRectF after = item->mapRectToScene(item->boundingRect());
-        QPointF p(0,0);
-        if (d->pressedVHandler == ScalingWidgetItemPrivate::Top)
-            p.setY(before.bottom() - after.bottom());
-        else if (d->pressedVHandler == ScalingWidgetItemPrivate::Bottom)
-            p.setY(before.top() - after.top());
-        else
-            p.setY((before.center() - after.center()).y());
+        foreach(AbstractPhoto * item, d->m_items)
+        {
+            QRectF beforeScene = item->mapRectToScene(item->boundingRect());
+            item->setTransform( item->transform() * sc );
+            QRectF afterScene = item->mapRectToScene(item->boundingRect());
+            QPointF p(0,0);
+            if (d->pressedVHandler == ScalingWidgetItemPrivate::Top)
+                p.setY(beforeScene.bottom() - afterScene.bottom());
+            else if (d->pressedVHandler == ScalingWidgetItemPrivate::Bottom)
+                p.setY(beforeScene.top() - afterScene.top());
+            else
+                p.setY((beforeScene.center() - afterScene.center()).y());
 
-        if (d->pressedHHandler == ScalingWidgetItemPrivate::Left)
-            p.setX(before.right() - after.right());
-        else if (d->pressedHHandler == ScalingWidgetItemPrivate::Right)
-            p.setX(before.left() - after.left());
-        else
-            p.setX((before.center() - after.center()).x());
+            if (d->pressedHHandler == ScalingWidgetItemPrivate::Left)
+                p.setX(beforeScene.right() - afterScene.right());
+            else if (d->pressedHHandler == ScalingWidgetItemPrivate::Right)
+                p.setX(beforeScene.left() - afterScene.left());
+            else
+                p.setX((beforeScene.center() - afterScene.center()).x());
 
-        item->moveBy( p.x(), p.y() );
+            ScaleItemCommand * scaleCom = d->scale_commands[item];
+            if (!scaleCom)
+                scaleCom = d->scale_commands[item] = new ScaleItemCommand(item);
+            scaleCom->addScale(sc);
+            scaleCom->addTranslation(p);
+
+            item->moveBy( p.x(), p.y() );
+        }
     }
 
     d->m_rect = temp;
-    d->calculateDrawings();
     event->setAccepted(true);
-    this->update();
 }
 
 void ScalingWidgetItem::mouseReleaseEvent(QGraphicsSceneMouseEvent * /*event*/)
-{}
+{
+    if (d->scale_commands.count() > 1)
+        PhotoLayoutsEditor::instance()->beginUndoCommandGroup(i18n("Scale items"));
+    for (QMap<AbstractPhoto*,ScaleItemCommand*>::iterator it = d->scale_commands.begin(); it != d->scale_commands.end(); ++it)
+    {
+        if (it.value())
+        {
+            it.value()->setDone(true);
+            PLE_PostUndoCommand(it.value());
+            it.value() = 0;
+        }
+    }
+    if (d->scale_commands.count() > 1)
+        PhotoLayoutsEditor::instance()->endUndoCommandGroup();
+    d->scale_commands.clear();
+
+    if (d->move_commands.count() > 1)
+        PhotoLayoutsEditor::instance()->beginUndoCommandGroup(i18n("Move items"));
+    for (QMap<AbstractPhoto*,MoveItemCommand*>::iterator it = d->move_commands.begin(); it != d->move_commands.end(); ++it)
+    {
+        if (it.value())
+        {
+            it.value()->setDone(true);
+            PLE_PostUndoCommand(it.value());
+            it.value() = 0;
+        }
+    }
+    if (d->move_commands.count() > 1)
+        PhotoLayoutsEditor::instance()->endUndoCommandGroup();
+    d->move_commands.clear();
+}
 
 void ScalingWidgetItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent * /*event*/)
 {}
@@ -348,21 +489,21 @@ void ScalingWidgetItem::setScaleItems(const QList<AbstractPhoto*> & items)
 {
     d->m_items = items;
 
-    d->m_crop_shape = QPainterPath();
     foreach (AbstractPhoto * item, items)
+        connect(item, SIGNAL(changed()), this, SLOT(updateShapes()));
+
+    this->updateShapes();
+}
+
+void ScalingWidgetItem::updateShapes()
+{
+    d->m_crop_shape = QPainterPath();
+    foreach (AbstractPhoto * item, d->m_items)
         d->m_crop_shape += this->mapFromItem(item, item->opaqueArea());
 
-    this->setPos( d->m_crop_shape.boundingRect().topLeft() );
-    d->m_crop_shape.translate( -d->m_crop_shape.boundingRect().topLeft() );
     d->m_rect = d->m_crop_shape.boundingRect();
 
-    d->recalculate = true;
-    d->calculateDrawings();
-    if (!d->m_rect.isValid())
-    {
-        this->hide();
-        return;
-    }
+    d->calculateHandlers();
+
     this->update();
-    this->show();
 }

@@ -14,6 +14,9 @@ namespace KIPIPhotoLayoutsEditor
     {
             Q_OBJECT
 
+            static QColor DEFAULT_COLOR;
+            static QFont DEFAULT_FONT;
+
             class TextEditUndoCommand;
             class TextColorUndoCommand;
             class TextFontUndoCommand;
