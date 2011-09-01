@@ -65,16 +65,12 @@ class KIPIPhotoLayoutsEditor::ScenePrivate
 
     QList<QGraphicsItem*> itemAtPosition(const QPointF & scenePos, QWidget * widget)
     {
-        qDebug() << widget;
         QGraphicsView * view = widget ? qobject_cast<QGraphicsView*>(widget->parentWidget()) : 0;
-        qDebug() << "itemsAtPosition";
         if (!view)
             return m_scene->items(scenePos, Qt::IntersectsItemShape, Qt::DescendingOrder, QTransform());
-        qDebug() << "has view";
         const QRectF pointRect(scenePos, QSizeF(1, 1));
         if (!view->isTransformed())
             return m_scene->items(pointRect, Qt::IntersectsItemShape, Qt::DescendingOrder);
-        qDebug() << "has transformation";
         const QTransform viewTransform = view->viewportTransform();
         return m_scene->items(pointRect, Qt::IntersectsItemShape, Qt::DescendingOrder, viewTransform);
     }
@@ -1139,7 +1135,7 @@ void Scene::setRotationWidgetVisible(bool isVisible)
         d->m_rot_item = 0;
     }
 
-    if (isVisible)
+    if (isVisible && d->m_selected_items.count())
     {
         if (!d->m_rot_item)
             d->m_rot_item = new RotationWidgetItem(d->m_selected_items.keys());
@@ -1182,7 +1178,7 @@ void Scene::setCropWidgetVisible(bool isVisible)
         d->m_crop_item = 0;
     }
 
-    if (isVisible)
+    if (isVisible && d->m_selected_items.count())
     {
         if (!d->m_crop_item)
         {

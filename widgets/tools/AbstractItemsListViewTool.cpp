@@ -86,6 +86,37 @@ public:
         model->setItem(item, model->index(row, 0));
     }
 };
+class ItemMoveRowsCommand : public QUndoCommand
+{
+    int sourceStart;
+    int count;
+    int destinationRow;
+    AbstractMovableModel * model;
+public:
+    ItemMoveRowsCommand(int sourceStart, int count, int destinationRow, AbstractMovableModel * model, QUndoCommand * parent = 0) :
+        QUndoCommand(parent),
+        sourceStart(sourceStart),
+        count(count),
+        destinationRow(destinationRow),
+        model(model)
+    {}
+    virtual void redo()
+    {
+        model->moveRows(sourceStart, count, destinationRow);
+        this->swap();
+    }
+    virtual void undo()
+    {
+        model->moveRows(sourceStart, count, destinationRow);
+        this->swap();
+    }
+    void swap()
+    {
+        int temp = sourceStart;
+        sourceStart = destinationRow;
+        destinationRow = temp;
+    }
+};
 
 class KIPIPhotoLayoutsEditor::AbstractItemsListViewToolPrivate
 {
@@ -309,7 +340,15 @@ void AbstractItemsListViewTool::moveSelectedDown()
     QModelIndex index = d->m_list_widget->selectedIndex();
     AbstractMovableModel * model = this->model();
     if (model && index.row() < model->rowCount()-1)
-        model->moveRows(index.row(),1,index.row()+2);
+    {
+        if (index.internalPointer())
+        {
+            QUndoCommand * command = new ItemMoveRowsCommand(index.row(),1,index.row()+2,model);
+            PLE_PostUndoCommand(command);
+        }
+        else
+            model->moveRows(index.row(),1,index.row()+2);
+    }
     d->setButtonsEnabled(true);
 }
 
@@ -320,7 +359,15 @@ void AbstractItemsListViewTool::moveSelectedUp()
     QModelIndex index = d->m_list_widget->selectedIndex();
     AbstractMovableModel * model = this->model();
     if (model && index.row() > 0)
-        model->moveRows(index.row(),1,index.row()-1);
+    {
+        if (index.internalPointer())
+        {
+            QUndoCommand * command = new ItemMoveRowsCommand(index.row(),1,index.row()-1,model);
+            PLE_PostUndoCommand(command);
+        }
+        else
+            model->moveRows(index.row(),1,index.row()+2);
+    }
     d->setButtonsEnabled(true);
 }
 

@@ -204,6 +204,7 @@ QDomElement AbstractPhoto::toSvg(QDomDocument & document) const
 
     // 'defs' tag
     QDomElement defs = document.createElement("defs");
+    defs.setAttribute("id", "data_"+this->id());
     itemSVG.appendChild(defs);
 
     // 'defs'->'clipPath'
@@ -232,7 +233,7 @@ QDomElement AbstractPhoto::toSvg(QDomDocument & document) const
     }
 
     QDomElement visibleData = document.createElement("g");
-    visibleData.setAttribute("id", "data_" + this->id());
+    visibleData.setAttribute("id", "vis_data_" + this->id());
     defs.appendChild(visibleData);
     visibleData.appendChild(this->svgVisibleArea(document));
     visibleData.appendChild(this->m_borders_group->toSvg(document));
@@ -326,29 +327,29 @@ bool AbstractPhoto::fromSvg(QDomElement & element)
     m_id = element.attribute("id");
     d->setName(element.attribute("name"));
 
-    // Borders
-    QDomNodeList children = element.childNodes();
-    for (int i = children.count()-1; i >= 0; --i)
-    {
-        if (!children.at(i).isElement())
-            continue;
-
-        QDomElement itemDataElement = children.at(i).toElement();
-        if (itemDataElement.attribute("id") != "data_"+m_id)
-            continue;
-
-        // Borders
-        if (m_borders_group)
-            delete m_borders_group;
-        m_borders_group = BordersGroup::fromSvg(itemDataElement, this);
-        if (!m_borders_group)
-            return false;
-    }
-
     // Validation purpose
     QDomElement defs = element.firstChildElement("defs");
+    while (!defs.isNull() && defs.attribute("id") != "data_"+m_id)
+        defs = defs.nextSiblingElement("defs");
     if (defs.isNull())
         return false;
+
+    QDomElement itemDataElement = defs.firstChildElement("g");
+    while (!itemDataElement.isNull() && itemDataElement.attribute("id") != "vis_data_"+this->id())
+        itemDataElement = itemDataElement.nextSiblingElement("g");
+    if (itemDataElement.isNull())
+        return false;
+
+    // Borders
+    if (m_borders_group)
+    {
+        m_borders_group->deleteLater();
+        m_borders_group = 0;
+    }
+    m_borders_group = BordersGroup::fromSvg(itemDataElement, this);
+    if (!m_borders_group)
+        return false;
+
     QDomElement clipPath = defs.firstChildElement("clipPath");
     if (clipPath.isNull() || clipPath.attribute("id") != "clipPath_"+this->id())
         return false;
@@ -402,19 +403,18 @@ QVariant AbstractPhoto::itemChange(GraphicsItemChange change, const QVariant & v
         case ItemPositionChange:
         case ItemScenePositionHasChanged:
             emit changed();
+        default:
+            return AbstractItemInterface::itemChange(change, value);
     }
-    return AbstractItemInterface::itemChange(change, value);
 }
 
 void AbstractPhoto::dragEnterEvent(QGraphicsSceneDragDropEvent * event)
 {
-    qDebug() << "dragEnterEvent";
     event->accept();
 }
 
 void AbstractPhoto::dragLeaveEvent(QGraphicsSceneDragDropEvent * event)
 {
-    qDebug() << "dragLeaveEvent";
     event->accept();
 }
 

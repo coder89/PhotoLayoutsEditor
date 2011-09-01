@@ -20,7 +20,8 @@ class KIPIPhotoLayoutsEditor::BorderChangeCommand : public QUndoCommand
         BorderChangeCommand(BorderDrawerInterface * drawer, QUndoCommand * parent = 0) :
             QUndoCommand(parent),
             drawer(drawer)
-        {}
+        {
+        }
         virtual void redo()
         {
             QVariant temp = drawer->propertyValue(propertyName);

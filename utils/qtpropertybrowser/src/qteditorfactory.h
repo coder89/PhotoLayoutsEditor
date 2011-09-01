@@ -57,7 +57,7 @@ public:
     ~QtSpinBoxFactory();
 protected:
     void connectPropertyManager(QtIntPropertyManager *manager);
-    virtual QWidget *createEditor(QtIntPropertyManager *manager, QtProperty *property,
+    QWidget *createEditor(QtIntPropertyManager *manager, QtProperty *property,
                 QWidget *parent);
     void disconnectPropertyManager(QtIntPropertyManager *manager);
 private:
@@ -81,7 +81,7 @@ public:
     ~QtSliderFactory();
 protected:
     void connectPropertyManager(QtIntPropertyManager *manager);
-    virtual QWidget *createEditor(QtIntPropertyManager *manager, QtProperty *property,
+    QWidget *createEditor(QtIntPropertyManager *manager, QtProperty *property,
                 QWidget *parent);
     void disconnectPropertyManager(QtIntPropertyManager *manager);
 private:
@@ -105,7 +105,7 @@ public:
     ~QtScrollBarFactory();
 protected:
     void connectPropertyManager(QtIntPropertyManager *manager);
-    virtual QWidget *createEditor(QtIntPropertyManager *manager, QtProperty *property,
+    QWidget *createEditor(QtIntPropertyManager *manager, QtProperty *property,
                 QWidget *parent);
     void disconnectPropertyManager(QtIntPropertyManager *manager);
 private:
@@ -129,7 +129,7 @@ public:
     ~QtCheckBoxFactory();
 protected:
     void connectPropertyManager(QtBoolPropertyManager *manager);
-    virtual QWidget *createEditor(QtBoolPropertyManager *manager, QtProperty *property,
+    QWidget *createEditor(QtBoolPropertyManager *manager, QtProperty *property,
                 QWidget *parent);
     void disconnectPropertyManager(QtBoolPropertyManager *manager);
 private:
@@ -151,7 +151,7 @@ public:
     ~QtDoubleSpinBoxFactory();
 protected:
     void connectPropertyManager(QtDoublePropertyManager *manager);
-    virtual QWidget *createEditor(QtDoublePropertyManager *manager, QtProperty *property,
+    QWidget *createEditor(QtDoublePropertyManager *manager, QtProperty *property,
                 QWidget *parent);
     void disconnectPropertyManager(QtDoublePropertyManager *manager);
 private:
@@ -176,7 +176,7 @@ public:
     ~QtLineEditFactory();
 protected:
     void connectPropertyManager(QtStringPropertyManager *manager);
-    virtual QWidget *createEditor(QtStringPropertyManager *manager, QtProperty *property,
+    QWidget *createEditor(QtStringPropertyManager *manager, QtProperty *property,
                 QWidget *parent);
     void disconnectPropertyManager(QtStringPropertyManager *manager);
 private:
@@ -200,7 +200,7 @@ public:
     ~QtDateEditFactory();
 protected:
     void connectPropertyManager(QtDatePropertyManager *manager);
-    virtual QWidget *createEditor(QtDatePropertyManager *manager, QtProperty *property,
+    QWidget *createEditor(QtDatePropertyManager *manager, QtProperty *property,
                 QWidget *parent);
     void disconnectPropertyManager(QtDatePropertyManager *manager);
 private:
@@ -224,7 +224,7 @@ public:
     ~QtTimeEditFactory();
 protected:
     void connectPropertyManager(QtTimePropertyManager *manager);
-    virtual QWidget *createEditor(QtTimePropertyManager *manager, QtProperty *property,
+    QWidget *createEditor(QtTimePropertyManager *manager, QtProperty *property,
                 QWidget *parent);
     void disconnectPropertyManager(QtTimePropertyManager *manager);
 private:
@@ -246,7 +246,7 @@ public:
     ~QtDateTimeEditFactory();
 protected:
     void connectPropertyManager(QtDateTimePropertyManager *manager);
-    virtual QWidget *createEditor(QtDateTimePropertyManager *manager, QtProperty *property,
+    QWidget *createEditor(QtDateTimePropertyManager *manager, QtProperty *property,
                 QWidget *parent);
     void disconnectPropertyManager(QtDateTimePropertyManager *manager);
 private:

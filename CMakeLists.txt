@@ -20,6 +20,7 @@
       models/LayersModel.cpp
       models/LayersModelItem.cpp
       models/LayersSelectionModel.cpp
+      models/AbstractMovableModel.cpp
       widgets/canvas/Scene.cpp
       widgets/canvas/Canvas.cpp
       widgets/layers/LayersTree.cpp
@@ -37,6 +38,7 @@
       events/UndoCommandEventFilter.cpp
       effects/PhotoEffectsLoader.cpp
       utils/global.cpp
+      utils/SavingThread.cpp
       widgets/items/TextItem.cpp
       widgets/dialogs/ImageFileDialog.cpp
       settings/PLEConfigDialog.cpp
@@ -49,6 +51,7 @@
       borders/BorderDrawersLoader.cpp
       borders/BorderChangeListener.cpp
       widgets/dialogs/GridSetupDialog.cpp
+      widgets/dialogs/SavingProgressDialog.cpp
       widgets/canvas/SceneBackground.cpp
       widgets/tools/CanvasEditTool.cpp
       widgets/tools/AbstractTool.cpp

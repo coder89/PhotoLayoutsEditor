@@ -140,7 +140,6 @@ QVariant LayersModelItem::data(int column) const
 
 QList<QVariant> LayersModelItem::data() const
 {
-    //qDebug() << "data" << this << "all";
     QList<QVariant> result;
     for(int i = 0; i < COLUMN_COUNT; ++i)
         result << data(i);
@@ -149,25 +148,20 @@ QList<QVariant> LayersModelItem::data() const
 
 bool LayersModelItem::insertChildren(int position, LayersModelItem * item)
 {
-    //qDebug() << "insertChildern" << position << item;
     if (position < 0 || position > childItems.size())
         return false;
-    //qDebug() << "dodajemy";
     childItems.insert(position, item);
     if (item != 0)
         item->setParent(this);
-    qDebug() << (QGraphicsItem*)item->photo();
     this->refreshZValues();
     return true;
 }
 
 bool LayersModelItem::removeChildren(int position, int count)
 {
-    //qDebug() << "removeChildren" << position << count;
     if (position < 0 || position + count > childItems.size())
         return false;
 
-    //qDebug() << "usuwamy";
     for (int row = 0; row < count; ++row)
         delete childItems.takeAt(position);
 

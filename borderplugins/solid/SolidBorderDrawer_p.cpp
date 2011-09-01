@@ -106,7 +106,30 @@ void SolidBorderDrawer::setPropertyValue(const QString & propertyName, const QVa
 
 QDomElement SolidBorderDrawer::toSvg(QDomDocument & document) const
 {
-    QDomElement result = document.createElement("border");
+    QDomElement result = document.createElement("path");
+    int count = m_path.elementCount();
+    QString str_path_d;
+    for (int i = 0; i < count; ++i)
+    {
+        QPainterPath::Element e = m_path.elementAt(i);
+        switch (e.type)
+        {
+        case QPainterPath::LineToElement:
+            str_path_d.append("L " + QString::number(e.x) + " " + QString::number(e.y) + " ");
+            break;
+        case QPainterPath::MoveToElement:
+            str_path_d.append("M " + QString::number(e.x) + " " + QString::number(e.y) + " ");
+            break;
+        case QPainterPath::CurveToElement:
+            str_path_d.append("C " + QString::number(e.x) + " " + QString::number(e.y) + " ");
+            break;
+        case QPainterPath::CurveToDataElement:
+            str_path_d.append(QString::number(e.x) + " " + QString::number(e.y) + " ");
+            break;
+        }
+    }
+    result.setAttribute("d", str_path_d);
+    result.setAttribute("fill", m_color.name());
     return result;
 }
 

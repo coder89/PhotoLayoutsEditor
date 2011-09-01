@@ -10,6 +10,14 @@ namespace KIPIPhotoLayoutsEditor
 {
     class TextItemPrivate;
 
+    class TextChangeUndoCommand;
+    class TextColorUndoCommand;
+    class TextFontUndoCommand;
+    class AddTextUndoCommand;
+    class RemoveTextUndoCommand;
+    class AddLineUndoCommand;
+    class MergeLineUndoCommand;
+
     class TextItem : public AbstractPhoto
     {
             Q_OBJECT
@@ -17,15 +25,10 @@ namespace KIPIPhotoLayoutsEditor
             static QColor DEFAULT_COLOR;
             static QFont DEFAULT_FONT;
 
-            class TextEditUndoCommand;
-            class TextColorUndoCommand;
-            class TextFontUndoCommand;
-
             TextItemPrivate * d;
 
             QColor m_color;
             QFont m_font;
-            QStringList m_string_list;
 
             QPainterPath m_complete_path;
             QPainterPath m_text_path;
@@ -77,9 +80,13 @@ namespace KIPIPhotoLayoutsEditor
 
         friend class TextItemPrivate;
 
-        friend class TextEditUndoCommand;
+        friend class TextChangeUndoCommand;
         friend class TextColorUndoCommand;
         friend class TextFontUndoCommand;
+        friend class AddTextUndoCommand;
+        friend class RemoveTextUndoCommand;
+        friend class AddLineUndoCommand;
+        friend class MergeLineUndoCommand;
     };
 }
 

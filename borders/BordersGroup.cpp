@@ -4,6 +4,7 @@
 #include "BorderDrawersLoader.h"
 
 #include <QGraphicsScene>
+#include <QUndoCommand>
 
 using namespace KIPIPhotoLayoutsEditor;
 
@@ -121,9 +122,10 @@ QDomElement BordersGroup::toSvg(QDomDocument & document)
 {
     QDomElement result = document.createElement("g");
     result.setAttribute("class", "borders");
-    foreach (BorderDrawerInterface * border, d->borders)
+    for (int i = d->borders.count()-1; i >= 0; --i)
     {
-        QDomElement temp = BorderDrawersLoader::drawerToSvg(border, document);
+        BorderDrawerInterface * drawer = d->borders[i];
+        QDomElement temp = BorderDrawersLoader::drawerToSvg(drawer, document);
         if (temp.isNull())
             continue;
         result.appendChild(temp);
@@ -165,14 +167,17 @@ BordersGroup * BordersGroup::fromSvg(QDomElement & element, AbstractPhoto * grap
 
         // Create drawer from DOM element
         BorderDrawerInterface * drawer = BorderDrawersLoader::getDrawerFromSvg(childElement);
+
         if (!drawer)
             continue;
 
         // Insert it into model
         result->d->borders.push_back(drawer);
+        drawer->setGroup(result);
     }
 
     result->d->photo = graphicsItem;
+    graphicsItem->m_borders_group = result;
     result->refresh();
     return result;
 }

@@ -150,7 +150,7 @@ class QT_QTPROPERTYBROWSER_EXPORT QtAbstractEditorFactoryBase : public QObject
 {
     Q_OBJECT
 public:
-    virtual QWidget *createEditor(QtProperty *property, QWidget *parent) = 0;
+    virtual QWidget * createPropertyEditor(QtProperty *property, QWidget *parent) = 0;
 signals:
     void editingFinished();
 protected:
@@ -173,7 +173,7 @@ class QtAbstractEditorFactory : public QtAbstractEditorFactoryBase
 {
 public:
     explicit QtAbstractEditorFactory(QObject *parent) : QtAbstractEditorFactoryBase(parent) {}
-    QWidget *createEditor(QtProperty *property, QWidget *parent)
+    QWidget * createPropertyEditor(QtProperty *property, QWidget *parent)
     {
         QSetIterator<PropertyManager *> it(m_managers);
         while (it.hasNext()) {

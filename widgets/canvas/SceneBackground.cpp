@@ -535,11 +535,15 @@ QVariant SceneBackground::itemChange(GraphicsItemChange change, const QVariant &
     {
         case QGraphicsItem::ItemParentChange:
             return QVariant(0);
+        case QGraphicsItem::ItemSceneChange:
+            this->disconnect(scene(), 0, this, 0);
+            break;
         case QGraphicsItem::ItemSceneHasChanged:
             sceneChanged();
-        default:
-            return QGraphicsItem::itemChange(change, value);
+            break;
+        default:;
     }
+    return QGraphicsItem::itemChange(change, value);
 }
 
 void SceneBackground::paint(QPainter * painter, const QStyleOptionGraphicsItem * option, QWidget * /*widget*/)
@@ -593,7 +597,6 @@ void SceneBackground::render(QPainter * painter, const QRect & rect)
 
 void SceneBackground::sceneChanged()
 {
-    this->disconnect(0, 0, this, SLOT(sceneRectChanged(QRectF)));
     if (scene())
     {
         sceneRectChanged(scene()->sceneRect());

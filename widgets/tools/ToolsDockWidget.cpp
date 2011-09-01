@@ -218,7 +218,6 @@ ToolsDockWidget::ToolsDockWidget(QWidget * parent) :
 
 void ToolsDockWidget::setDefaultTool()
 {
-    qDebug() << "setDefaultTool";
     m_tool_hand->setChecked(true);
     this->emitHandToolSelected(true);
 }

@@ -2147,7 +2147,7 @@ QWidget *QtCursorEditorFactory::createEditor(QtCursorPropertyManager *manager, Q
         d_ptr->m_enumToProperty[enumProp] = property;
     }
     QtAbstractEditorFactoryBase *af = d_ptr->m_enumEditorFactory;
-    QWidget *editor = af->createEditor(enumProp, parent);
+    QWidget *editor = af->createPropertyEditor(enumProp, parent);
     d_ptr->m_enumToEditors[enumProp].append(editor);
     d_ptr->m_editorToEnum[editor] = enumProp;
     connect(editor, SIGNAL(destroyed(QObject *)),

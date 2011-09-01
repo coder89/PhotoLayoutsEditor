@@ -2160,7 +2160,7 @@ QWidget *QtVariantEditorFactory::createEditor(QtVariantPropertyManager *manager,
     QtAbstractEditorFactoryBase *factory = d_ptr->m_typeToFactory.value(propType, 0);
     if (!factory)
         return 0;
-    return factory->createEditor(wrappedProperty(property), parent);
+    return factory->createPropertyEditor(wrappedProperty(property), parent);
 }
 
 /*!

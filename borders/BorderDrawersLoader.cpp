@@ -80,22 +80,30 @@ BorderDrawerInterface * BorderDrawersLoader::getDrawerByName(const QString & nam
 
 BorderDrawerInterface * BorderDrawersLoader::getDrawerFromSvg(QDomElement & drawerElement)
 {
-
-
-//    QMap<QString,QString> properties;
-//    QDomNamedNodeMap attributes = childElement.attributes();
-//    for (int j = attributes.count()-1; j >= 0; --j)
-//    {
-//        QDomAttr attr = attributes.item(j).toAttr();
-//        if (attr.isNull())
-//            continue;
-//        properties.insert(attr.name(), attr.value());
-//    }
-
-    QString drawerName = drawerElement.attribute("name");
+    QMap<QString,QString> properties;
+    QDomNamedNodeMap attributes = drawerElement.attributes();
+    for (int j = attributes.count()-1; j >= 0; --j)
+    {
+        QDomAttr attr = attributes.item(j).toAttr();
+        if (attr.isNull())
+            continue;
+        properties.insert(attr.name(), attr.value());
+    }
+    QString drawerName = properties.take("name");
     if (!instance()->registeredDrawers().contains(drawerName))
         return 0;
-    return getDrawerByName(drawerName);
+    BorderDrawerInterface * drawer = getDrawerByName(drawerName);
+    const QMetaObject * meta = drawer->metaObject();
+    int count = meta->propertyCount();
+    for (int i = 0; i < count; ++i)
+    {
+        QMetaProperty p = meta->property(i);
+        QString value = properties.take(p.name());
+        if (value.isEmpty())
+            continue;
+        p.write(drawer, QVariant(QByteArray::fromBase64(value.toAscii())));
+    }
+    return drawer;
 }
 
 QDomElement BorderDrawersLoader::drawerToSvg(BorderDrawerInterface * drawer, QDomDocument & document)
@@ -104,6 +112,16 @@ QDomElement BorderDrawersLoader::drawerToSvg(BorderDrawerInterface * drawer, QDo
         return QDomElement();
     QDomElement result = document.createElement("g");
     result.setAttribute("name", drawer->factory()->drawerName());
+
+    result.appendChild( drawer->toSvg(document) );
+
+    const QMetaObject * meta = drawer->metaObject();
+    int count = meta->propertyCount();
+    for (int i = 0; i < count; ++i)
+    {
+        QMetaProperty p = meta->property(i);
+        result.setAttribute( p.name(), QString(p.read(drawer).toByteArray().toBase64()) );
+    }
 
     return result;
 }
@@ -165,10 +183,6 @@ QWidget * BorderDrawersLoader::createEditor(BorderDrawerInterface * drawer, bool
                     doubleManager->setValue(property, metaProperty.read(drawer).toDouble());
                     doubleManager->setMinimum(property, drawer->minimumValue(metaProperty).toDouble());
                     doubleManager->setMaximum(property, drawer->maximumValue(metaProperty).toDouble());
-                }
-                break;
-            case Enum:
-                {
                 }
                 break;
             default:

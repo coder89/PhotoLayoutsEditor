@@ -120,7 +120,7 @@ void KSliderEditFactory::connectPropertyManager(QtIntPropertyManager * manager)
 QWidget * KSliderEditFactory::createEditor(QtIntPropertyManager * manager, QtProperty * property, QWidget * parent)
 {
     QtAbstractEditorFactoryBase * base = originalFactory;
-    QWidget * w = base->createEditor(property,parent);
+    QWidget * w = base->createPropertyEditor(property,parent);
     if (!w)
         return 0;
     QSlider * slider = qobject_cast<QSlider*>(w);

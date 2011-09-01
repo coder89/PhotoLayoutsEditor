@@ -131,6 +131,7 @@ namespace KIPIPhotoLayoutsEditor
             void refresh()
             {
                 this->refreshItem();
+                this->m_borders_group->refresh();
                 emit changed();
             }
 
@@ -214,6 +215,7 @@ namespace KIPIPhotoLayoutsEditor
 
             friend class Scene;
             friend class PhotoEffectsGroup;
+            friend class BordersGroup;
 
             friend class AbstractPhotoPrivate;
             friend class CropShapeChangeCommand;

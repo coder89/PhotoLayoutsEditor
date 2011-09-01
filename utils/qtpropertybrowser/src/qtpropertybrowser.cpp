@@ -1940,7 +1940,7 @@ QWidget *QtAbstractPropertyBrowser::createEditor(QtProperty *property,
 
     if (!factory)
         return 0;
-    return factory->createEditor(property, parent);
+    return factory->createPropertyEditor(property, parent);
 }
 
 bool QtAbstractPropertyBrowser::addFactory(QtAbstractPropertyManager *abstractManager,

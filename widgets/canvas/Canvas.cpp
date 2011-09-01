@@ -5,6 +5,7 @@
 #include "LayersSelectionModel.h"
 #include "UndoMoveRowsCommand.h"
 #include "UndoBorderChangeCommand.h"
+#include "SavingProgressDialog.h"
 #include "PLEConfigSkeleton.h"
 #include "global.h"
 
@@ -260,7 +261,6 @@ void Canvas::setAntialiasing(bool antialiasing)
     this->setRenderHint(QPainter::Antialiasing, antialiasing);                            /// It causes worst quality!
     this->setOptimizationFlag(QGraphicsView::DontAdjustForAntialiasing, antialiasing);    /// It causes worst quality!
     this->update();
-    qDebug() << "antialiasing" << antialiasing;
 }
 
 /** ##########################################################################################################################
@@ -801,6 +801,18 @@ QString Canvas::save(const KUrl & fileUrl, bool setAsDefault)
             return i18n("Invalid file path.");
         tempFile = m_file;
     }
+
+//    QString errorString;
+//    SavingProgressDialog dialog(this, tempFile, &errorString);
+//    int result = dialog.exec();
+//    if (result == KDialog::Accepted)
+//    {
+//        if (setAsDefault)
+//            m_file = tempFile;
+//        m_is_saved = true;
+//        m_saved_on_index = m_undo_stack->index();
+//    }
+
     QFile file(tempFile.path());
     if (file.open(QFile::WriteOnly | QFile::Text))
     {

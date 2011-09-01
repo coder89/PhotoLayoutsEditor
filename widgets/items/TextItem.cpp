@@ -23,8 +23,9 @@ class KIPIPhotoLayoutsEditor::TextItemPrivate
     TextItemPrivate(TextItem * item) :
         m_item(item),
         m_cursorIsVisible(false),
-        m_cursor_line(0),
-        m_cursor_character(0)
+        m_cursor_row(0),
+        m_cursor_character(0),
+        command(0)
     {
     }
 
@@ -33,157 +34,151 @@ class KIPIPhotoLayoutsEditor::TextItemPrivate
         --m_cursor_character;
         if (m_cursor_character < 0)
         {
-            --m_cursor_line;
-            if (m_cursor_line < 0)
+            --m_cursor_row;
+            if (m_cursor_row < 0)
             {
-                ++m_cursor_line;
+                ++m_cursor_row;
                 ++m_cursor_character;
             }
             else
-                m_cursor_character = m_item->m_string_list.at(m_cursor_line).length();
+                m_cursor_character = m_string_list.at(m_cursor_row).length();
         }
+        command = 0;
     }
 
     void moveCursorRight()
     {
         ++m_cursor_character;
-        if (m_cursor_character > m_item->m_string_list.at(m_cursor_line).length())
+        if (m_cursor_character > m_string_list.at(m_cursor_row).length())
         {
-            ++m_cursor_line;
-            if (m_cursor_line >= m_item->m_string_list.count())
+            ++m_cursor_row;
+            if (m_cursor_row >= m_string_list.count())
             {
-                --m_cursor_line;
+                --m_cursor_row;
                 --m_cursor_character;
             }
             else
                 m_cursor_character = 0;
         }
+        command = 0;
     }
 
     void moveCursorUp()
     {
-        --(m_cursor_line);
-        if (m_cursor_line < 0)
-            m_cursor_line = 0;
-        else if (m_cursor_character > m_item->m_string_list.at(m_cursor_line).length())
-            m_cursor_character = m_item->m_string_list.at(m_cursor_line).length();
+        --(m_cursor_row);
+        if (m_cursor_row < 0)
+            m_cursor_row = 0;
+        else if (m_cursor_character > m_string_list.at(m_cursor_row).length())
+            m_cursor_character = m_string_list.at(m_cursor_row).length();
+        command = 0;
     }
 
     void moveCursorDown()
     {
-        ++(m_cursor_line);
-        if (m_cursor_line >= m_item->m_string_list.count())
-            --m_cursor_line;
-        else if (m_cursor_character > m_item->m_string_list.at(m_cursor_line).length())
-            m_cursor_character = m_item->m_string_list.at(m_cursor_line).length();
+        ++(m_cursor_row);
+        if (m_cursor_row >= m_string_list.count())
+            --m_cursor_row;
+        else if (m_cursor_character > m_string_list.at(m_cursor_row).length())
+            m_cursor_character = m_string_list.at(m_cursor_row).length();
+        command = 0;
     }
 
     void moveCursorEnd()
     {
-        m_cursor_character = m_item->m_string_list.at(m_cursor_line).length();
+        m_cursor_character = m_string_list.at(m_cursor_row).length();
+        command = 0;
     }
 
     void moveCursorHome()
     {
         m_cursor_character = 0;
+        command = 0;
     }
 
-    void removeTextAfter()
+    void removeTextAfter();
+
+    void removeTextBefore();
+
+    void addNewLine();
+
+    void addText(const QString & text);
+
+    void addText(int row, int at, const QString & text)
     {
-        if (m_cursor_character < m_item->m_string_list.at(m_cursor_line).length())
-            m_item->m_string_list[m_cursor_line].remove(m_cursor_character, 1);
-        else if (m_item->m_string_list.count()-1 > m_cursor_line)
-        {
-            m_item->m_string_list[m_cursor_line].append( m_item->m_string_list.at(m_cursor_line+1) );
-            m_item->m_string_list.removeAt(m_cursor_line+1);
-        }
+        row = row < m_string_list.count() ? row : m_string_list.count()-1;
+        row = row < 0 ? 0 : row;
+        at = at < m_string_list[row].length() ? at : m_string_list[row].length();
+        at = at < 0 ? 0 : at;
+        m_string_list[row].insert(at, text);
+        m_cursor_row = row;
+        m_cursor_character = at + text.length();
+        m_item->refreshItem();
     }
 
-    void removeTextBefore()
+    void removeText(int row, int at, int length)
     {
-        if (m_cursor_character > 0 && m_item->m_string_list.at(m_cursor_line).length() >= m_cursor_character)
-            m_item->m_string_list[m_cursor_line].remove(--m_cursor_character, 1);
-        else if (m_cursor_line > 0)
-        {
-            m_item->m_string_list[m_cursor_line-1].append( m_item->m_string_list.at(m_cursor_line) );
-            --m_cursor_line;
-            m_cursor_character = m_item->m_string_list.at(m_cursor_line).length();
-            m_item->m_string_list.removeAt(m_cursor_line+1);
-        }
-    }
-
-    void addNewLine()
-    {
-        QString temp;
-        if (m_cursor_character < m_item->m_string_list.at(m_cursor_line).length())
-        {
-            temp = m_item->m_string_list[m_cursor_line].right(m_item->m_string_list.at(m_cursor_line).length()-m_cursor_character);
-            m_item->m_string_list[m_cursor_line].remove(m_cursor_character, m_item->m_string_list.at(m_cursor_line).length()-m_cursor_character+1);
-        }
-        m_cursor_character = 0;
-        ++m_cursor_line;
-        m_item->m_string_list.insert(m_cursor_line, temp);
-    }
-
-    void addText(const QString & text)
-    {
-        if (!text.length())
-            return;
-        m_item->m_string_list[m_cursor_line].insert(m_cursor_character, text);
-        m_cursor_character += text.length();
+        row = row < m_string_list.count() ? row : m_string_list.count()-1;
+        row = row < 0 ? 0 : row;
+        at = at < m_string_list[row].length() ? at : m_string_list[row].length();
+        at = at < 0 ? 0 : at;
+        m_string_list[row].remove(at, length);
+        m_cursor_row = row;
+        m_cursor_character = at;
+        m_item->refreshItem();
     }
 
     void closeEditor()
     {
         m_item->clearFocus();
+        command = 0;
     }
 
     TextItem * m_item;
 
-    QStringList m_temp_string;
+    QStringList m_string_list;
 
     QPointF m_cursor_point;
     bool m_cursorIsVisible;
-    int m_cursor_line;
+    int m_cursor_row;
     int m_cursor_character;
 
+    QUndoCommand * command;
+
     friend class TextItem;
+
+    friend class TextChangeUndoCommand;
+    friend class TextColorUndoCommand;
+    friend class TextFontUndoCommand;
+    friend class AddTextUndoCommand;
+    friend class RemoveTextUndoCommand;
+    friend class AddLineUndoCommand;
+    friend class MergeLineUndoCommand;
 };
 
-class KIPIPhotoLayoutsEditor::TextItem::TextEditUndoCommand : public QUndoCommand
+class KIPIPhotoLayoutsEditor::TextChangeUndoCommand : public QUndoCommand
 {
-        TextItem * m_item;
-        QStringList m_prevText;
-        bool done;
-    public:
-        TextEditUndoCommand(const QStringList & prevText, TextItem * item, bool isDone = true, QUndoCommand * parent = 0) :
-            QUndoCommand(i18n("Change text"), parent),
-            m_item(item),
-            m_prevText(prevText),
-            done(isDone)
-        {}
-        virtual void redo()
-        {
-            if (done)
-                return;
-            done = !done;
-            QStringList temp = m_item->m_string_list;
-            m_item->m_string_list = m_prevText;
-            m_prevText = temp;
-            m_item->refresh();
-        }
-        virtual void undo()
-        {
-            if (!done)
-                return;
-            done = !done;
-            QStringList temp = m_item->m_string_list;
-            m_item->m_string_list = m_prevText;
-            m_prevText = temp;
-            m_item->refresh();
-        }
+    QStringList m_text;
+    TextItem * m_item;
+public:
+    TextChangeUndoCommand(const QStringList & text, TextItem * item, QUndoCommand * parent = 0) :
+        QUndoCommand(i18n("Text change"), parent),
+        m_text(text),
+        m_item(item)
+    {}
+    virtual void redo()
+    {
+        QStringList temp = m_item->d->m_string_list;
+        m_item->d->m_string_list = m_text;
+        m_text = temp;
+    }
+    virtual void undo()
+    {
+        QStringList temp = m_item->d->m_string_list;
+        m_item->d->m_string_list = m_text;
+        m_text = temp;
+    }
 };
-class KIPIPhotoLayoutsEditor::TextItem::TextColorUndoCommand : public QUndoCommand
+class KIPIPhotoLayoutsEditor::TextColorUndoCommand : public QUndoCommand
 {
         TextItem * m_item;
         QColor m_color;
@@ -209,7 +204,7 @@ class KIPIPhotoLayoutsEditor::TextItem::TextColorUndoCommand : public QUndoComma
             m_item->refresh();
         }
 };
-class KIPIPhotoLayoutsEditor::TextItem::TextFontUndoCommand : public QUndoCommand
+class KIPIPhotoLayoutsEditor::TextFontUndoCommand : public QUndoCommand
 {
         TextItem * m_item;
         QFont m_font;
@@ -235,15 +230,204 @@ class KIPIPhotoLayoutsEditor::TextItem::TextFontUndoCommand : public QUndoComman
             m_item->refresh();
         }
 };
+class KIPIPhotoLayoutsEditor::AddTextUndoCommand : public QUndoCommand
+{
+    TextItemPrivate * m_item_p;
+    QString text;
+    int row;
+    int at;
+public:
+    AddTextUndoCommand(int row, int at, TextItemPrivate * item_p, QUndoCommand * parent = 0) :
+        QUndoCommand(i18n("Text edit"), parent),
+        m_item_p(item_p),
+        row(row),
+        at(at)
+    {}
+    virtual void redo()
+    {
+        m_item_p->addText(row, at, text);
+    }
+    virtual void undo()
+    {
+        m_item_p->removeText(row, at, this->text.length());
+        m_item_p->command = 0;
+    }
+    void addText(const QString & text)
+    {
+        m_item_p->addText(row, at+this->text.length(), text);
+        this->text.append(text);
+    }
+};
+class KIPIPhotoLayoutsEditor::RemoveTextUndoCommand : public QUndoCommand
+{
+    TextItemPrivate * m_item_p;
+    QString text;
+    int row;
+    int at;
+public:
+    RemoveTextUndoCommand(int row, int at, TextItemPrivate * item_p, QUndoCommand * parent = 0) :
+        QUndoCommand(i18n("Text edit"), parent),
+        m_item_p(item_p),
+        row(row),
+        at(at)
+    {}
+    virtual void redo()
+    {
+        m_item_p->removeText(row, at, text.length());
+    }
+    virtual void undo()
+    {
+        m_item_p->addText(row, at, text);
+        m_item_p->command = 0;
+    }
+    virtual void removeLeft()
+    {
+        text.prepend(m_item_p->m_string_list[row][--at]);
+        m_item_p->m_string_list[row].remove(at, 1);
+        --(m_item_p->m_cursor_character);
+        m_item_p->m_item->refreshItem();
+    }
+    virtual void removeRight()
+    {
+        text.append(m_item_p->m_string_list[row][at]);
+        m_item_p->m_string_list[row].remove(at, 1);
+        m_item_p->m_item->refreshItem();
+    }
+};
+class KIPIPhotoLayoutsEditor::AddLineUndoCommand : public QUndoCommand
+{
+    TextItemPrivate * m_item_p;
+    int row;
+    int at;
+public:
+    AddLineUndoCommand(int row, int at, TextItemPrivate * item_p, QUndoCommand * parent = 0) :
+        QUndoCommand(i18n("Text edit"), parent),
+        m_item_p(item_p),
+        row(row),
+        at(at)
+    {}
+    virtual void redo()
+    {
+        int length = m_item_p->m_string_list[row].length()-at;
+        length = length < 0 ? 0 : length;
+        QString temp = m_item_p->m_string_list[row].right( length );
+        m_item_p->m_string_list[row].remove(at, length);
+        m_item_p->m_cursor_character = at = 0;
+        m_item_p->m_cursor_row = ++row;
+        m_item_p->m_string_list.insert(row, temp);
+        m_item_p->m_item->refreshItem();
+        m_item_p->command = 0;
+    }
+    virtual void undo()
+    {
+        m_item_p->m_cursor_character = at = m_item_p->m_string_list[row-1].length();
+        m_item_p->m_string_list[row-1].append( m_item_p->m_string_list[row] );
+        m_item_p->m_string_list.removeAt(row);
+        m_item_p->m_cursor_row = --row;
+        m_item_p->m_item->refreshItem();
+        m_item_p->command = 0;
+    }
+};
+class KIPIPhotoLayoutsEditor::MergeLineUndoCommand : public QUndoCommand
+{
+    TextItemPrivate * m_item_p;
+    int row;
+    int at;
+public:
+    MergeLineUndoCommand(int row, TextItemPrivate * item_p, QUndoCommand * parent = 0) :
+        QUndoCommand(i18n("Text edit"), parent),
+        m_item_p(item_p),
+        row(row),
+        at(0)
+    {}
+    virtual void redo()
+    {
+        m_item_p->m_cursor_row = --row;
+        m_item_p->m_cursor_character = at = m_item_p->m_string_list[row].length();
+        m_item_p->m_string_list[row].append( m_item_p->m_string_list[row+1] );
+        m_item_p->m_string_list.removeAt(row+1);
+        m_item_p->command = 0;
+        m_item_p->m_item->refreshItem();
+    }
+    virtual void undo()
+    {
+        QString temp = m_item_p->m_string_list[row].right( m_item_p->m_string_list[row].length()-at );
+        m_item_p->m_string_list[row].remove(at, temp.length());
+        m_item_p->m_cursor_row = ++row;
+        m_item_p->m_string_list.insert(row, temp);
+        m_item_p->m_cursor_character = at = 0;
+        m_item_p->command = 0;
+        m_item_p->m_item->refreshItem();
+    }
+};
+
+void TextItemPrivate::addText(const QString & text)
+{
+    if (!text.length())
+        return;
+    AddTextUndoCommand * command = dynamic_cast<AddTextUndoCommand*>(this->command);
+    if (!command)
+    {
+        this->command = command = new AddTextUndoCommand(m_cursor_row, m_cursor_character, this);
+        PLE_PostUndoCommand(command);
+    }
+    command->addText(text);
+}
+
+void TextItemPrivate::addNewLine()
+{
+    PLE_PostUndoCommand( new AddLineUndoCommand(m_cursor_row, m_cursor_character, this) );
+}
+
+void TextItemPrivate::removeTextAfter()
+{
+    // Remove text from current line
+    if (m_cursor_character < m_string_list.at(m_cursor_row).length())
+    {
+        RemoveTextUndoCommand * command = dynamic_cast<RemoveTextUndoCommand*>(this->command);
+        if (!command)
+        {
+            this->command = command = new RemoveTextUndoCommand(m_cursor_row, m_cursor_character, this);
+            PLE_PostUndoCommand(command);
+        }
+        command->removeRight();
+    }
+    // Remove current line
+    else if (m_string_list.count()-1 > m_cursor_row)
+    {
+        PLE_PostUndoCommand( new MergeLineUndoCommand(m_cursor_row+1, this) );
+    }
+}
+
+void TextItemPrivate::removeTextBefore()
+{
+    // Remove text from current line
+    if (m_cursor_character > 0 && m_string_list.at(m_cursor_row).length() >= m_cursor_character)
+    {
+        RemoveTextUndoCommand * command = dynamic_cast<RemoveTextUndoCommand*>(this->command);
+        if (!command)
+        {
+            this->command = command = new RemoveTextUndoCommand(m_cursor_row, m_cursor_character, this);
+            PLE_PostUndoCommand(command);
+        }
+        command->removeLeft();
+    }
+    // Remove current line
+    else if (m_cursor_row > 0)
+    {
+        PLE_PostUndoCommand( new MergeLineUndoCommand(m_cursor_row, this) );
+    }
+}
 
 TextItem::TextItem(const QString & text, Scene * scene) :
     AbstractPhoto((text.isEmpty() ? i18n("Text item") : text), scene),
     d(new TextItemPrivate(this)),
     m_color(DEFAULT_COLOR),
     m_font(DEFAULT_FONT),
-    m_string_list(QString(text).remove('\t').split('\n')),
     m_metrics(m_font)
 {
+    d->m_string_list = QString(text).remove('\t').split('\n');
+
     this->setFlag(QGraphicsItem::ItemIsFocusable);
     this->refresh();
 }
@@ -255,7 +439,6 @@ void TextItem::focusInEvent(QFocusEvent * event)
         this->clearFocus();
         return;
     }
-    d->m_temp_string = m_string_list;
     this->setCursorPositionVisible(true);
     AbstractPhoto::focusInEvent(event);
     this->setCursor(QCursor(Qt::IBeamCursor));
@@ -264,12 +447,7 @@ void TextItem::focusInEvent(QFocusEvent * event)
 
 void TextItem::focusOutEvent(QFocusEvent * event)
 {
-    if (this->scene() && d->m_temp_string != m_string_list)
-    {
-        QUndoCommand * undo = new TextEditUndoCommand(d->m_temp_string, this);
-        PLE_PostUndoCommand(undo);
-    }
-    d->m_temp_string.clear();
+    d->command = 0;
     this->setCursorPositionVisible(false);
     AbstractPhoto::focusOutEvent(event);
     this->unsetCursor();
@@ -320,7 +498,6 @@ void TextItem::keyPressEvent(QKeyEvent * event)
     }
     refreshItem();
     event->setAccepted(true);
-    qDebug() << event->text();
 }
 
 void TextItem::mousePressEvent(QGraphicsSceneMouseEvent * event)
@@ -328,34 +505,37 @@ void TextItem::mousePressEvent(QGraphicsSceneMouseEvent * event)
     QPointF p = event->pos();
 
     // Get clicked line number
-    d->m_cursor_line =  p.y() / m_metrics.lineSpacing();
-    if (d->m_cursor_line >= m_string_list.count())
-        d->m_cursor_line = m_string_list.count()-1;
-    QString currentLine = m_string_list.at( d->m_cursor_line );
+    d->m_cursor_row =  p.y() / m_metrics.lineSpacing();
+    if (d->m_cursor_row >= d->m_string_list.count())
+        d->m_cursor_row = d->m_string_list.count()-1;
+    QString currentLine = d->m_string_list.at( d->m_cursor_row );
 
     // Get clicked char position
     if (currentLine.length())
     {
         p.setX(p.x()-m_metrics.leftBearing(currentLine.at(0)));
-        d->m_cursor_character = p.x() / m_metrics.averageCharWidth();
-        if (d->m_cursor_character > currentLine.length())
-            d->m_cursor_character = currentLine.length();
-        int width = m_metrics.width(currentLine, d->m_cursor_character);
-        int leftSpace = 0;
-        while (width > p.x() && d->m_cursor_character > 0)
-        {
-            leftSpace = width - p.x();
-            width = m_metrics.width(currentLine, --(d->m_cursor_character));
-        }
+        d->m_cursor_character = 0;
+        int limit = currentLine.length();
+        int width = 0;
         int rightSpace = 0;
-        while (width < p.x() && d->m_cursor_character < currentLine.length())
+        int leftSpace = 0;
+        while (width < p.x() && d->m_cursor_character < limit)
         {
-            rightSpace = p.x() - width;
             width = m_metrics.width(currentLine, ++(d->m_cursor_character));
+            rightSpace = width - p.x();
         }
+        if (d->m_cursor_character > 0)
+        {
+            width = m_metrics.width(currentLine, --(d->m_cursor_character));
+            leftSpace = p.x() - width;
+        }
+        if (leftSpace > rightSpace)
+            ++(d->m_cursor_character);
     }
     else
         p.setX(0);
+
+    d->command = 0;
 
     this->update();
 }
@@ -386,17 +566,17 @@ void TextItem::setFont(const QFont & font)
 
 QStringList TextItem::text() const
 {
-    return m_string_list;
+    return d->m_string_list;
 }
 
 QString TextItem::textMultiline() const
 {
-    return m_string_list.join("\n");
+    return d->m_string_list.join("\n");
 }
 
 void TextItem::setText(const QStringList & textList)
 {
-    QUndoCommand * undo = new TextEditUndoCommand(textList, this, false);
+    QUndoCommand * undo = new TextChangeUndoCommand(textList, this);
     PLE_PostUndoCommand(undo);
 }
 
@@ -446,13 +626,13 @@ void TextItem::paint(QPainter * painter, const QStyleOptionGraphicsItem * option
         painter->save();
         painter->setCompositionMode(QPainter::RasterOp_SourceXorDestination);
         painter->setPen(Qt::gray);
-        int y = m_metrics.lineSpacing() * d->m_cursor_line;
+        int y = m_metrics.lineSpacing() * d->m_cursor_row;
         int x = 0;
-        if ( m_string_list.count() > d->m_cursor_line && !m_string_list.at(d->m_cursor_line).isEmpty() )
+        if ( d->m_string_list.count() > d->m_cursor_row && !d->m_string_list.at(d->m_cursor_row).isEmpty() )
         {
-            x = m_metrics.width(m_string_list.at(d->m_cursor_line),
+            x = m_metrics.width(d->m_string_list.at(d->m_cursor_row),
                                 d->m_cursor_character)
-                - m_metrics.leftBearing(m_string_list.at(d->m_cursor_line).at(0));
+                - m_metrics.leftBearing(d->m_string_list.at(d->m_cursor_row).at(0));
         }
         painter->drawLine(x, y, x, y+m_metrics.lineSpacing());
         painter->restore();
@@ -477,7 +657,7 @@ QDomElement TextItem::toSvg(QDomDocument & document) const
 
     // 'defs'-> pfe:'data' -> 'text'
     QDomElement text = document.createElement("text");
-    text.appendChild(document.createTextNode(m_string_list.join("\n").toUtf8()));
+    text.appendChild(document.createTextNode(d->m_string_list.join("\n").toUtf8()));
     text.setPrefix(KIPIPhotoLayoutsEditor::name());
     appNS.appendChild(text);
 
@@ -523,7 +703,7 @@ TextItem * TextItem::fromSvg(QDomElement & element)
         while (!textValue.isNull() && !textValue.isText())
             textValue = textValue.nextSibling();
         IS_NULL(textValue);
-        result->m_string_list = textValue.toText().data().remove('\t').split('\n');
+        result->d->m_string_list = textValue.toText().data().remove('\t').split('\n');
 
         // Color
         QDomElement color = data.firstChildElement("color");
@@ -551,7 +731,7 @@ void TextItem::refreshItem()
     int maxBearing = 0;
     int maxWidth = 0;
     const int lineSpacing = m_metrics.lineSpacing();
-    foreach (QString string, m_string_list)
+    foreach (QString string, d->m_string_list)
     {
         if (string.length())
         {
@@ -574,7 +754,7 @@ void TextItem::refreshItem()
     m_complete_path.addRect(0,
                             0,
                             maxWidth + maxBearing,
-                            m_string_list.count() * m_metrics.lineSpacing());
+                            d->m_string_list.count() * m_metrics.lineSpacing());
     this->prepareGeometryChange();
     this->updateIcon();
 }

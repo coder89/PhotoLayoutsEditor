@@ -19,8 +19,6 @@ QString KIPIPhotoLayoutsEditor::uri()
 
 void KIPIPhotoLayoutsEditor::PLE_PostUndoCommand(QUndoCommand * command)
 {
-    if (command)
-        qDebug() << command->text();
     PhotoLayoutsEditor::instance()->addUndoCommand(command);
 }
 
